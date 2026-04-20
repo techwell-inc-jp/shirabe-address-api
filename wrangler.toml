@@ -2,16 +2,16 @@ name = "shirabe-address-api"
 main = "src/index.ts"
 compatibility_date = "2024-12-01"
 
-# Workers ルート(実装指示書 §5.1: 別Worker + ルート振り分け方式)
-# 暦 API の shirabe-calendar-api が shirabe.dev / api.shirabe.dev を持つため、
-# 住所 API はパスベースで振り分ける想定。最終的な route 設定は Cloudflare
-# Dashboard または暦側 wrangler.toml と調整のうえ確定する(要経営者確認)。
-# Phase 1 骨格では route 宣言をコメントアウトし、ローカル開発(wrangler dev)
-# 時のデフォルトルートで動作確認する。
-
-# [[routes]]
-# pattern = "shirabe.dev/api/v1/address/*"
-# zone_name = "shirabe.dev"
+# Workers ルート(実装指示書 §5.1: 別Worker + ルート振り分け方式、A案確定 2026-04-22)
+# shirabe.dev/api/v1/address/* を住所 API Worker が捌く。
+# 暦 API(shirabe-calendar-api)は shirabe.dev apex を custom_domain で受けており、
+# 具体的なパスパターンは本ルートが優先される(Cloudflare Workers Route 優先度仕様)。
+#
+# api.shirabe.dev 側も同等にルーティングする場合は、経営者側で
+# Cloudflare Dashboard にて手動追加するか、本セクションに追記する。
+[[routes]]
+pattern = "shirabe.dev/api/v1/address/*"
+zone_name = "shirabe.dev"
 
 [vars]
 API_VERSION = "0.1.0-phase1"
@@ -30,14 +30,23 @@ type = "Text"
 globs = ["**/*.yaml"]
 fallthrough = true
 
-# API_KEYS: 暦 API と共有を想定(1キー集約構造、実装指示書 §5.2 推奨 + docs/kv-api-keys-design.md)
-# Phase 1 初期は暦 API の既存 namespace id を再利用するか、
-# 独立 namespace で起動するかを経営者確認のうえ確定する。
-# 下記 id は**プレースホルダ**で、実際の運用前に入替えが必要。
+# API_KEYS: **暦 API と共有**確定(経営者判断 2026-04-22)。
+# 1キー集約構造(docs/kv-api-keys-design.md)で暦・住所の plan を同一レコードに集約し、
+# 同一 APIキーで両 API にアクセス可能にする。
+# 参照: 暦 API 側 wrangler.toml(../shirabe-calendar/wrangler.toml)の同 namespace。
 [[kv_namespaces]]
 binding = "API_KEYS"
-id = "PLACEHOLDER_API_KEYS_ID"
-preview_id = "PLACEHOLDER_API_KEYS_ID"
+id = "3b6bfff407974b7cbf79ded8e184c1a6"
+preview_id = "3b6bfff407974b7cbf79ded8e184c1a6"
+
+# === 住所 API 専用 namespace(Phase 1 実装中に新規作成) ===
+# 以下 3 件は住所 API 固有で、暦 API とは共有しない。
+# wrangler kv namespace create コマンドで新規作成後、id を差し替える:
+#   npx wrangler kv namespace create RATE_LIMITS_ADDRESS
+#   npx wrangler kv namespace create USAGE_LOGS_ADDRESS
+#   npx wrangler kv namespace create ADDRESS_CACHE
+# 作成は 4/23(水)に Claude Code が実行予定(経営者の Cloudflare API Token が
+# `wrangler login` 済みの想定。未ログインなら先に `npx wrangler login` が必要)。
 
 # レート制限カウンター(住所 API 専用)
 [[kv_namespaces]]
