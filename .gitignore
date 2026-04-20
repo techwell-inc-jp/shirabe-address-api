@@ -1,0 +1,18 @@
+node_modules
+dist
+.wrangler
+.dev.vars
+.env
+.env.*
+*.log
+.DS_Store
+coverage
+
+# Fly.io local
+fly/node_modules
+fly/dist
+fly/.fly
+
+# IDE
+.vscode
+.idea

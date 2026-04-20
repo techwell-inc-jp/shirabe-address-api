@@ -1,0 +1,22 @@
+{
+  "name": "shirabe-address-api-fly",
+  "version": "0.1.0",
+  "description": "Fly.io NRT side of Shirabe Address API — abr-geocoder wrapper",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "start": "node --experimental-strip-types src/server.ts",
+    "build:dictionary": "bash scripts/build-dictionary.sh"
+  },
+  "dependencies": {
+    "@digital-go-jp/abr-geocoder": "^2.5.1",
+    "hono": "^4.7.0"
+  },
+  "devDependencies": {
+    "@types/node": "^25.6.0",
+    "typescript": "^5.8.0"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

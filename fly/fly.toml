@@ -1,0 +1,29 @@
+# Fly.io 設定 — shirabe-address-api(実装指示書 §4.3)
+#
+# デプロイは GitHub Actions 経由のみ(親 CLAUDE.md §0 禁止コマンド)。
+# `flyctl deploy` をローカルで直接実行しないこと。
+
+app = "shirabe-address-api"
+primary_region = "nrt"
+
+[build]
+  dockerfile = "Dockerfile"
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  # Workers からの内部通信のみ受付。X-Internal-Token でアプリ層検証。
+  auto_stop_machines = "off"
+  auto_start_machines = true
+  min_machines_running = 1
+
+[mounts]
+  source = "address_db"
+  destination = "/data/address-db"
+
+[[vm]]
+  size = "performance-1x"
+  memory = "2gb"
+
+# 環境変数・シークレットは `flyctl secrets set` で投入(実装指示書 §8.2):
+# - INTERNAL_TOKEN: Workers 側の FLY_INTERNAL_TOKEN と同一値を設定

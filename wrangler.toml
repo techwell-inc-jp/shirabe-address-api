@@ -1,0 +1,72 @@
+name = "shirabe-address-api"
+main = "src/index.ts"
+compatibility_date = "2024-12-01"
+
+# Workers ルート(実装指示書 §5.1: 別Worker + ルート振り分け方式)
+# 暦 API の shirabe-calendar-api が shirabe.dev / api.shirabe.dev を持つため、
+# 住所 API はパスベースで振り分ける想定。最終的な route 設定は Cloudflare
+# Dashboard または暦側 wrangler.toml と調整のうえ確定する(要経営者確認)。
+# Phase 1 骨格では route 宣言をコメントアウトし、ローカル開発(wrangler dev)
+# 時のデフォルトルートで動作確認する。
+
+# [[routes]]
+# pattern = "shirabe.dev/api/v1/address/*"
+# zone_name = "shirabe.dev"
+
+[vars]
+API_VERSION = "0.1.0-phase1"
+# Stripe Price ID は経営者が Stripe で Product/Meter/Price を作成後に差し込む
+# STRIPE_PRICE_STARTER = "price_XXX"
+# STRIPE_PRICE_PRO = "price_XXX"
+# STRIPE_PRICE_ENTERPRISE = "price_XXX"
+
+# Fly.io 側エンドポイント URL(実装指示書 §3.3)
+FLYIO_GEOCODE_URL = "https://shirabe-address-api.fly.dev/internal/geocode"
+
+# YAMLファイルをテキストモジュールとしてバンドルに取り込む
+# (GET /openapi.yaml で docs/openapi.yaml の内容を返すため)
+[[rules]]
+type = "Text"
+globs = ["**/*.yaml"]
+fallthrough = true
+
+# API_KEYS: 暦 API と共有を想定(1キー集約構造、実装指示書 §5.2 推奨 + docs/kv-api-keys-design.md)
+# Phase 1 初期は暦 API の既存 namespace id を再利用するか、
+# 独立 namespace で起動するかを経営者確認のうえ確定する。
+# 下記 id は**プレースホルダ**で、実際の運用前に入替えが必要。
+[[kv_namespaces]]
+binding = "API_KEYS"
+id = "PLACEHOLDER_API_KEYS_ID"
+preview_id = "PLACEHOLDER_API_KEYS_ID"
+
+# レート制限カウンター(住所 API 専用)
+[[kv_namespaces]]
+binding = "RATE_LIMITS"
+id = "PLACEHOLDER_RATE_LIMITS_ID"
+preview_id = "PLACEHOLDER_RATE_LIMITS_ID"
+
+# 利用量ログ(住所 API 専用)
+[[kv_namespaces]]
+binding = "USAGE_LOGS"
+id = "PLACEHOLDER_USAGE_LOGS_ID"
+preview_id = "PLACEHOLDER_USAGE_LOGS_ID"
+
+# 住所キャッシュ(新規、TTL: 3600秒、実装指示書 §3.4)
+[[kv_namespaces]]
+binding = "ADDRESS_CACHE"
+id = "PLACEHOLDER_ADDRESS_CACHE_ID"
+preview_id = "PLACEHOLDER_ADDRESS_CACHE_ID"
+
+# 住所 API 用 Analytics Engine Dataset(暦 API とは別 Dataset)
+[[analytics_engine_datasets]]
+binding = "ANALYTICS"
+dataset = "shirabe_address_events"
+
+# 本番環境の Secret は `wrangler secret put` で設定(実装指示書 §8.1):
+# - STRIPE_SECRET_KEY
+# - STRIPE_WEBHOOK_SECRET (住所 API 用、新規)
+# - FLY_INTERNAL_TOKEN    (Workers → Fly.io 認証用共有シークレット)
+# - CF_ACCOUNT_ID         (AE 書込)
+# - CF_AE_READ_TOKEN      (AE 読取、内部統計用)
+# - INTERNAL_STATS_USER   (内部統計 Basic 認証)
+# - INTERNAL_STATS_PASS   (内部統計 Basic 認証)
