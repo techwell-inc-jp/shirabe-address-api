@@ -18,7 +18,7 @@ info:
   title: Shirabe Address API
   summary: 日本の住所を ABR 基準で正規化・構造化・座標付与して返す REST API。
   description: |
-    Japanese address normalization API backed by the Digital Agency's Address Base Registry (ABR). Returns canonical form, structured components (prefecture/city/town/block/building/floor), postal code, WGS84 coordinates, match level (0-4), and confidence. CC BY 4.0 `attribution` is mandatory on every response and must not be stripped downstream. Phase 1 covers Tokyo, Kanagawa, Osaka, Aichi, Fukuoka, Hokkaido; Phase 2 (~2026-05-20) ships nationwide. Free tier: 5,000 anonymous calls/month. Full spec: https://shirabe.dev/api/v1/address/openapi.yaml
+    Japanese address normalization API backed by the Digital Agency's Address Base Registry (ABR). Returns canonical form, structured components (prefecture/city/town/block/building/floor), postal code, WGS84 coordinates, match level (0-4), and confidence. CC BY 4.0 `attribution` is mandatory on every response and must not be stripped downstream. All 47 Japanese prefectures supported at launch (GA 2026-05-01). Free tier: 5,000 anonymous calls/month. Full spec: https://shirabe.dev/api/v1/address/openapi.yaml
   version: "1.0.0"
   termsOfService: https://shirabe.dev/terms
   contact:
@@ -55,7 +55,7 @@ paths:
       tags: [Address]
       summary: Normalize a single Japanese address
       description: |
-        Normalize one Japanese address against ABR. Returns normalized form, structured components, WGS84 coordinates, level (0-4), confidence. Ambiguous / not-found / outside-Phase-1 cases return HTTP 200 with `result=null` + `error` code. `attribution` (CC BY 4.0) is mandatory and must not be stripped.
+        Normalize one Japanese address against ABR (47 prefectures). Returns canonical form, components, WGS84 coords, level (0-4), confidence. Ambiguous / not-found / invalid-prefecture cases return HTTP 200 with `result=null` + `error` code. `attribution` (CC BY 4.0) is mandatory.
       operationId: normalizeAddress
       requestBody:
         required: true
@@ -244,15 +244,14 @@ paths:
                 $ref: '#/components/schemas/HealthResponse'
               example:
                 status: "ok"
-                version: "0.1.0-phase1"
+                version: "1.0.0"
                 coverage:
-                  - "東京都"
-                  - "神奈川県"
-                  - "大阪府"
-                  - "愛知県"
-                  - "福岡県"
                   - "北海道"
-                phase: 1
+                  - "東京都"
+                  - "京都府"
+                  - "大阪府"
+                  - "沖縄県"
+                coverage_mode: "nationwide"
 
 components:
 
@@ -367,8 +366,9 @@ components:
       type: string
       description: |
         Error codes. May appear inside a 200-body (`result=null`, `error.code`) or
-        inside a 4xx/5xx ErrorResponse. Notable: OUTSIDE_COVERAGE (Phase 2 prefecture),
-        SERVICE_UNAVAILABLE (geocoder down), BATCH_TOO_LARGE (>100).
+        inside a 4xx/5xx ErrorResponse. Notable: OUTSIDE_COVERAGE (invalid/typo'd
+        prefecture name; all 47 official prefectures are supported), SERVICE_UNAVAILABLE
+        (geocoder down), BATCH_TOO_LARGE (>100).
       enum:
         - ADDRESS_NOT_FOUND
         - AMBIGUOUS_INPUT
@@ -478,28 +478,23 @@ components:
 
     HealthResponse:
       type: object
-      required: [status, version, coverage, phase]
+      required: [status, version, coverage, coverage_mode]
       properties:
         status:
           type: string
           enum: [ok, degraded, down]
         version:
           type: string
-          example: "0.1.0-phase1"
+          example: "1.0.0"
         coverage:
           type: array
           items:
             type: string
-          example:
-            - "東京都"
-            - "神奈川県"
-            - "大阪府"
-            - "愛知県"
-            - "福岡県"
-            - "北海道"
-        phase:
-          type: integer
-          example: 1
+          description: All 47 Japanese prefectures.
+        coverage_mode:
+          type: string
+          enum: [nationwide]
+          example: "nationwide"
 
     ErrorResponse:
       type: object

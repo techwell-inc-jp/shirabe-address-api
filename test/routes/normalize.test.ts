@@ -239,7 +239,7 @@ describe("POST /api/v1/address/normalize — cache", () => {
 });
 
 describe("POST /api/v1/address/normalize — OUTSIDE_COVERAGE", () => {
-  it("returns 200 with OUTSIDE_COVERAGE for Phase 2 prefecture without calling Fly.io", async () => {
+  it("returns 200 with OUTSIDE_COVERAGE for invalid/fabricated prefecture name without calling Fly.io", async () => {
     const fetchFn = stubFetch(async () => {
       throw new Error("should not be called");
     });
@@ -249,7 +249,7 @@ describe("POST /api/v1/address/normalize — OUTSIDE_COVERAGE", () => {
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ address: "宮城県仙台市青葉区国分町1-1" }),
+        body: JSON.stringify({ address: "架空県仮想市サンプル町1-1" }),
       },
       env as unknown as Record<string, unknown>
     );
@@ -261,7 +261,7 @@ describe("POST /api/v1/address/normalize — OUTSIDE_COVERAGE", () => {
     };
     expect(json.result).toBeNull();
     expect(json.error?.code).toBe("OUTSIDE_COVERAGE");
-    expect(json.error?.matched_up_to).toBe("宮城県");
+    expect(json.error?.matched_up_to).toBe("架空県");
     expect(json.attribution.license).toBe("CC BY 4.0");
     expect(fetchFn).not.toHaveBeenCalled();
   });
@@ -426,7 +426,7 @@ describe("POST /api/v1/address/normalize/batch — happy + mixed", () => {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          addresses: ["東京都港区六本木6-10-1", "宮城県仙台市青葉区国分町1-1"],
+          addresses: ["東京都港区六本木6-10-1", "架空県仮想市サンプル町1-1"],
         }),
       },
       env as unknown as Record<string, unknown>
@@ -459,7 +459,7 @@ describe("POST /api/v1/address/normalize/batch — happy + mixed", () => {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          addresses: ["宮城県仙台市", "広島県広島市"],
+          addresses: ["架空県仮想市", "テスト都新宿区"],
         }),
       },
       env as unknown as Record<string, unknown>

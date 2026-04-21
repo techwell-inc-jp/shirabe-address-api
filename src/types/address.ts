@@ -111,13 +111,16 @@ export type BatchNormalizeResponse = {
 
 /**
  * GET /api/v1/address/health レスポンス
- * 実装指示書 §2.3
+ *
+ * `coverage` は API が公開している都道府県の一覧(現在は全 47 都道府県)。
+ * `coverage_mode` は AI エージェントが一目で対象範囲を把握できるよう nationwide 固定。
+ * 配列長だけチェックして分岐する消費者コードを壊さない。
  */
 export type HealthResponse = {
   status: "ok" | "degraded" | "down";
   version: string;
   coverage: string[];
-  phase: number;
+  coverage_mode: "nationwide";
 };
 
 /**
@@ -158,18 +161,67 @@ export const DEFAULT_ATTRIBUTION: Attribution = {
 };
 
 /**
- * Phase 1 対象都道府県(実装指示書 §4.2)
+ * API が受け付ける都道府県一覧(47 件、全国対応)。
+ *
+ * 2026-04-21 の E2E 検証で abr-geocoder v2.2.1 の prefecture-level lg_code 絞り込み
+ * が oaza_cho Trie を空にしてしまう挙動が判明し、辞書を全国フルに切り替えた。
+ * 同時に Phase 1(6 都道府県)/ Phase 2(全国)の分離を解消し、5/1 正式リリース時点で
+ * 全国対応をアナウンスする方針に統一。
+ *
+ * `checkCoverage` は入力から都道府県名を抽出し、本配列と照合する(事前フィルタ)。
+ * 本配列に含まれない文字列(例: "架空県" といった誤入力)は OUTSIDE_COVERAGE で即時拒否する。
  */
-export const PHASE_1_COVERAGE = [
+export const SUPPORTED_PREFECTURES = [
+  "北海道",
+  "青森県",
+  "岩手県",
+  "宮城県",
+  "秋田県",
+  "山形県",
+  "福島県",
+  "茨城県",
+  "栃木県",
+  "群馬県",
+  "埼玉県",
+  "千葉県",
   "東京都",
   "神奈川県",
-  "大阪府",
+  "新潟県",
+  "富山県",
+  "石川県",
+  "福井県",
+  "山梨県",
+  "長野県",
+  "岐阜県",
+  "静岡県",
   "愛知県",
+  "三重県",
+  "滋賀県",
+  "京都府",
+  "大阪府",
+  "兵庫県",
+  "奈良県",
+  "和歌山県",
+  "鳥取県",
+  "島根県",
+  "岡山県",
+  "広島県",
+  "山口県",
+  "徳島県",
+  "香川県",
+  "愛媛県",
+  "高知県",
   "福岡県",
-  "北海道",
+  "佐賀県",
+  "長崎県",
+  "熊本県",
+  "大分県",
+  "宮崎県",
+  "鹿児島県",
+  "沖縄県",
 ] as const;
 
-export type Phase1Prefecture = (typeof PHASE_1_COVERAGE)[number];
+export type SupportedPrefecture = (typeof SUPPORTED_PREFECTURES)[number];
 
 /** batch の最大件数(実装指示書 §2.2) */
 export const BATCH_MAX_SIZE = 100;

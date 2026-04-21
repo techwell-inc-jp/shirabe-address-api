@@ -99,7 +99,7 @@ const FAQ_LD: Record<string, unknown> = {
       name: "どの都道府県に対応していますか?",
       acceptedAnswer: {
         "@type": "Answer",
-        text: "Phase 1(2026-05-06 正式リリース予定)では 6 都道府県(北海道・東京都・神奈川県・愛知県・大阪府・福岡県)に対応します。カバー範囲外の入力には OUTSIDE_COVERAGE エラーを返します。Phase 2(2026-05-20 頃)で全国 47 都道府県に拡張予定です。",
+        text: "2026-05-01 正式リリース時点で全 47 都道府県に対応します。入力に含まれる都道府県名が日本の 47 都道府県として認識できない場合(架空名・タイポ等)のみ OUTSIDE_COVERAGE エラーを返します。",
       },
     },
   ],
@@ -249,7 +249,7 @@ print(r.json()["normalized"])</code></pre>
       <tr><td><code>INVALID_FORMAT</code></td><td>400</td>
         <td>address が空文字・未指定・非文字列。入力をログに記録して再試行。</td></tr>
       <tr><td><code>OUTSIDE_COVERAGE</code></td><td>200 (per-item)</td>
-        <td>Phase 1 対応 6 都道府県の範囲外。Phase 2(5/20 頃)以降で対応予定。</td></tr>
+        <td>入力の都道府県名が日本の 47 都道府県に該当しない(タイポ・架空名)。入力の確認を促す。</td></tr>
       <tr><td><code>NOT_FOUND</code></td><td>200 (per-item)</td>
         <td>住所が ABR に存在しない(架空住所・誤字)。入力の確認を促す。</td></tr>
       <tr><td><code>PARTIAL_MATCH</code></td><td>200 (per-item)</td>

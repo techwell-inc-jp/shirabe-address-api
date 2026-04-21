@@ -121,7 +121,7 @@ Phase 1 では暦 API の書込パスを凍結し、Phase 2 で統一する。
   存在する場合は `migrateToAggregated` → `apis.address` セット → `put`)
 - **暦 API `checkout/pending`**: 未変更(平文 APIキー一時格納は集約構造とは別軸)
 
-#### Phase 2(住所 API リリース後、5/6 以降に別タスクで実施)
+#### Phase 2(住所 API リリース後、5/1 以降に別タスクで実施)
 
 - **暦 API `webhook.ts`**: 新フォーマット書込に移行
   - 全 Webhook ハンドラ(checkoutCompleted / paymentFailed / paymentSucceeded /
@@ -138,7 +138,7 @@ Phase 1 では暦 API の書込パスを凍結し、Phase 2 で統一する。
 
 ### 4.3 完全移行(旧フォーマットの駆逐)
 
-**Phase 1(5/6 リリース時点)では強制移行しない**。既存の暦 API 本番鍵はすべて
+**Phase 1(5/1 リリース時点)では強制移行しない**。既存の暦 API 本番鍵はすべて
 旧フォーマットのままで読み取れる。
 
 **Phase 2 以降の候補オプション**(別タスクで決定):
@@ -236,7 +236,7 @@ await API_KEYS.put(hash, JSON.stringify(aggregated));
 
 ## 8. 本設計書の実装進捗チェックリスト
 
-### Phase 1(2026-04-22 着手、5/6 リリースまで)
+### Phase 1(2026-04-22 着手、5/1 リリースまで)
 
 - [x] 型定義(住所 API 側 `src/types/api-key.ts`)— **4/22 完了**
 - [x] 型定義(暦 API 側 `src/types/api-key.ts`)— **4/22 完了**(同内容を配置)
@@ -246,7 +246,7 @@ await API_KEYS.put(hash, JSON.stringify(aggregated));
 - [ ] 住所 API 側認証ミドルウェア実装(4/22 タスク3)
 - [ ] 住所 API Stripe Webhook の `metadata.api_name === "address"` 対応(4/29 予定)
 
-### Phase 2(5/6 以降、別タスク)
+### Phase 2(5/1 以降、別タスク)
 
 - [ ] 暦 API `webhook.ts` の新フォーマット書込移行(全 4 ハンドラ)
 - [ ] webhook.test.ts のアサーション更新(aggregated 構造)
@@ -262,5 +262,5 @@ await API_KEYS.put(hash, JSON.stringify(aggregated));
 ## 9. 要経営者確認事項
 
 1. ~~KV namespace(API_KEYS)の共有 or 独立~~ → **共有で確定(2026-04-22)**
-2. **旧フォーマットの扱い / Phase 2 移行タイミング**: 住所 API リリース(5/6)後に
+2. **旧フォーマットの扱い / Phase 2 移行タイミング**: 住所 API リリース(5/1)後に
    on-write migration へ切り替えるか、もう少し観測期間を置くかは retros/2026-05.md で判断
