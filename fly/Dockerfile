@@ -24,6 +24,7 @@ RUN npm ci
 
 COPY tsconfig.json ./
 COPY src ./src
+COPY scripts ./scripts
 RUN npm run build
 
 # 本番用に prod deps のみを別ディレクトリへ再インストール
@@ -43,6 +44,7 @@ RUN apt-get update \
 COPY --from=build /app/node_modules ./node_modules
 COPY --from=build /app/dist ./dist
 COPY --from=build /app/package.json ./package.json
+COPY --from=build /app/scripts ./scripts
 
 ENV NODE_ENV=production
 ENV PORT=8080
