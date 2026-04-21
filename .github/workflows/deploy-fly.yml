@@ -10,8 +10,6 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    # Phase 1 骨格: Fly.io デプロイは Dockerfile + abr-geocoder 統合完了後に有効化する
-    if: ${{ false }}
     steps:
       - uses: actions/checkout@v4
       - uses: superfly/flyctl-actions/setup-flyctl@master
