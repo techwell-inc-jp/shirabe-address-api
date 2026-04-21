@@ -6,7 +6,7 @@
  * パイプライン(Claude Code 2026-04-21 配線):
  *   1. リクエスト受信 + バリデーション(INVALID_FORMAT)
  *   2. 前処理: postal-code-parser で郵便番号抽出、building-separator で建物名/階数分離
- *   3. Phase 1 対象外判定(checkCoverage)→ OUTSIDE_COVERAGE
+ *   3. 対象外判定(checkCoverage)→ OUTSIDE_COVERAGE(無効な都道府県名のみ)
  *   4. cache.cacheGet(ヒット時は即返却、AE には coverage=in_coverage を記録)
  *   5. flyio-client.callFlyGeocode → Fly.io /internal/geocode へ POST
  *   6. response-formatter.formatNormalizeResponse で公開スキーマへ整形
@@ -206,7 +206,7 @@ export function buildOutsideCoverageResponse(
     candidates: [],
     error: {
       code: "OUTSIDE_COVERAGE",
-      message: `${prefecture} は Phase 1 の対応範囲外です。対象都道府県は東京都/神奈川県/大阪府/愛知県/福岡県/北海道。Phase 2(2026-05-20 頃)で全国展開予定。`,
+      message: `${prefecture} は日本の都道府県として認識できませんでした。入力が正しい都道府県名か確認してください(全 47 都道府県対応)。`,
       matched_up_to: prefecture,
       level: 1,
     },

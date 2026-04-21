@@ -1,7 +1,7 @@
 /**
  * Shirabe Address API — Hono エントリポイント
  *
- * Cloudflare Workers 上で動作する住所正規化 REST API(Phase 1)。
+ * Cloudflare Workers 上で動作する住所正規化 REST API(全国 47 都道府県対応)。
  * 実装指示書 20260422-address-api-implementation-order.md に準拠。
  *
  * ミドルウェア適用方針(暦 API と同じ):
@@ -69,7 +69,7 @@ app.route("/api/v1/address/webhook/stripe", webhook);
 // Checkout(認証非通過。新規顧客の購入開始エンドポイント)
 app.route("/api/v1/address/checkout", checkout);
 
-// API エンドポイントに Phase 1 ミドルウェアチェーンを適用。
+// API エンドポイントにミドルウェアチェーンを適用。
 // Webhook / Checkout / Health に誤マッチさせないため、保護対象パスを **完全一致で列挙** する。
 // ワイルドカード `/normalize/*` は `/normalize` 単独にも重複マッチして
 // ミドルウェアを二重実行する挙動があるため採用しない。

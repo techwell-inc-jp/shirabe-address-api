@@ -80,7 +80,7 @@ const FAQ_LD: Record<string, unknown> = {
       name: "最大件数は増える予定ですか?",
       acceptedAnswer: {
         "@type": "Answer",
-        text: "Phase 1 では上限 100 件です。Enterprise プラン(¥0.1/回)の需要次第で、Phase 2 以降に 500 件/リクエストまで拡張する検討をしています。BATCH_TOO_LARGE エラーを受けた場合は、クライアント側で分割送信してください。",
+        text: "現在の上限は 100 件です。Enterprise プラン(¥0.1/回)の需要次第で、将来 500 件/リクエストまで拡張する検討をしています。BATCH_TOO_LARGE エラーを受けた場合は、クライアント側で分割送信してください。",
       },
     },
   ],
@@ -166,11 +166,11 @@ for (const r of results) {
       "attribution": { ... }
     },
     {
-      "input": "青森県弘前市和徳町1",
+      "input": "架空県仮想市サンプル町1",
       "error": {
         "code": "OUTSIDE_COVERAGE",
-        "message": "Phase 1 scope: Hokkaido, Tokyo, Kanagawa, Aichi, Osaka, Fukuoka.",
-        "recoveryHint": "Phase 2 (2026-05-20) will extend to all 47 prefectures."
+        "message": "架空県 は日本の都道府県として認識できませんでした。入力が正しい都道府県名か確認してください(全 47 都道府県対応)。",
+        "recoveryHint": "都道府県名のタイポや架空名でないか確認してください。"
       }
     }
   ],
