@@ -20,12 +20,15 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/*
 
 COPY package.json package-lock.json* ./
-RUN npm ci --omit=dev
+RUN npm ci
 
-COPY src ./src
 COPY tsconfig.json ./
-# TODO(4/24): TS ビルド設定を追加
-# RUN npx tsc -p tsconfig.json
+COPY src ./src
+RUN npm run build
+
+# 本番用に prod deps のみを別ディレクトリへ再インストール
+# (native bindings は build stage と同じ環境で取得し、runtime stage にコピーする)
+RUN npm prune --omit=dev
 
 # ---- runtime stage ----
 FROM node:20-bookworm-slim AS runtime
@@ -38,13 +41,12 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/*
 
 COPY --from=build /app/node_modules ./node_modules
-COPY --from=build /app/src ./src
-COPY package.json ./
+COPY --from=build /app/dist ./dist
+COPY --from=build /app/package.json ./package.json
 
 ENV NODE_ENV=production
 ENV PORT=8080
 
 EXPOSE 8080
 
-# TODO(4/24): ts-node または ビルド成果物に差し替え
-CMD ["node", "--experimental-strip-types", "src/server.ts"]
+CMD ["node", "dist/server.js"]

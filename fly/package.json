@@ -5,11 +5,13 @@
   "type": "module",
   "private": true,
   "scripts": {
-    "start": "node --experimental-strip-types src/server.ts",
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/server.js",
     "build:dictionary": "bash scripts/build-dictionary.sh"
   },
   "dependencies": {
-    "@digital-go-jp/abr-geocoder": "^2.5.1",
+    "@digital-go-jp/abr-geocoder": "^2.2.1",
+    "@hono/node-server": "^1.13.0",
     "hono": "^4.7.0"
   },
   "devDependencies": {
