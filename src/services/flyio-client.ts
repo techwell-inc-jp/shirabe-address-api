@@ -107,7 +107,10 @@ export async function callFlyGeocode(
   if (!url) {
     return { ok: false, error: { kind: "config_missing", field: "FLYIO_GEOCODE_URL" } };
   }
-  const token = env.FLY_INTERNAL_TOKEN;
+  // Secret 投入経路(PowerShell の Get-Content パイプ等)で末尾 CR/LF が
+  // 紛れ込みやすいため、送信直前に trim する。Fly.io 側は `!==` 厳密一致で
+  // 比較するため、ここで揃えないと認証が常に失敗する。
+  const token = env.FLY_INTERNAL_TOKEN?.trim();
   if (!token) {
     return { ok: false, error: { kind: "config_missing", field: "FLY_INTERNAL_TOKEN" } };
   }

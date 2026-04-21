@@ -35,7 +35,9 @@ type FlyEnv = {
 
 const env = process.env as FlyEnv;
 
-const INTERNAL_TOKEN = env.INTERNAL_TOKEN;
+// flyctl secrets import 等の投入経路で末尾 CR/LF が紛れ込むことがあるため
+// `!==` 比較前に trim する。Workers 側 (flyio-client.ts) も対称に trim する。
+const INTERNAL_TOKEN = env.INTERNAL_TOKEN?.trim();
 const DICTIONARY_DIR = env.ABR_DICTIONARY_DIR ?? "/data/address-db";
 const PORT = Number(env.PORT ?? "8080");
 const HOST = env.HOST ?? "0.0.0.0";

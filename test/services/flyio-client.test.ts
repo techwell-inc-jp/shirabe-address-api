@@ -279,6 +279,38 @@ describe("callFlyGeocode — config guards", () => {
       }
     }
   });
+
+  it("trims whitespace from FLY_INTERNAL_TOKEN before sending", async () => {
+    // Secret 投入経路(PowerShell Get-Content パイプ等)で紛れ込む CR/LF/空白を吸収する。
+    // Fly.io 側は `!==` 厳密一致のため、Workers 側で事前 trim しないと認証が落ちる。
+    const env = buildEnv({ FLY_INTERNAL_TOKEN: `  ${TOKEN}\r\n` });
+    let capturedToken: string | undefined;
+    const fetchImpl: typeof fetch = async (_url, init) => {
+      capturedToken = new Headers(init?.headers).get("X-Internal-Token") ?? undefined;
+      return mockJsonResponse(200, { results: [] });
+    };
+    const result = await callFlyGeocode(env, ["x"], {
+      timeoutMs: FLY_TIMEOUT_SINGLE_MS,
+      fetchImpl,
+    });
+    expect(result.ok).toBe(true);
+    expect(capturedToken).toBe(TOKEN);
+  });
+
+  it("returns config_missing when FLY_INTERNAL_TOKEN is only whitespace", async () => {
+    const env = buildEnv({ FLY_INTERNAL_TOKEN: "   \r\n  " });
+    const result = await callFlyGeocode(env, ["x"], {
+      timeoutMs: FLY_TIMEOUT_SINGLE_MS,
+      fetchImpl: async () => mockJsonResponse(200, { results: [] }),
+    });
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error.kind).toBe("config_missing");
+      if (result.error.kind === "config_missing") {
+        expect(result.error.field).toBe("FLY_INTERNAL_TOKEN");
+      }
+    }
+  });
 });
 
 describe("callFlyGeocode — timeout constants", () => {
