@@ -103,5 +103,8 @@ export function createMockEnv() {
     ANALYTICS: new MockAnalyticsEngine(),
     API_VERSION: "0.1.0-test",
     FLYIO_GEOCODE_URL: "http://localhost:8080/internal/geocode",
+    // Fly.io 内部認証トークンも Secret 相当として注入。実テストは vi.stubGlobal("fetch", ...) で
+    // ネットワークを差し替える。
+    FLY_INTERNAL_TOKEN: "test-internal-token",
   };
 }
