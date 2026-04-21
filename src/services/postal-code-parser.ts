@@ -28,12 +28,16 @@ export type PostalCodeExtractResult = {
 const POSTAL_MARK = "〒";
 
 /**
- * 全角英数・全角記号を半角に揃え、各種ダッシュ・長音を半角ハイフンに正規化する。
- * NFKC を使うと `ー`(U+30FC: カタカナ長音)が変換されないため、独自マッピングを追加する。
+ * 全角英数・全角記号を半角に揃え、**数字に挟まれたダッシュ類のみ** 半角ハイフンに正規化する。
+ *
+ * NFKC は `６` や `−`(U+2212) を半角化するが、`ー`(U+30FC カタカナ長音)や
+ * en/em ダッシュは対象外。これらは建物名 "タワー" 等で正当に出現するため、
+ * 数字に挟まれた場合にのみ置換することで住所本体と建物名の双方を破壊しない。
  */
 function normalizeInput(input: string): string {
   const nfkc = input.normalize("NFKC");
-  return nfkc.replace(/[ー−‐‑‒–—―]/g, "-");
+  // U+2212 MINUS SIGN は NFKC の対象外のため明示的に含める。
+  return nfkc.replace(/(?<=\d)[ー−‐‑‒–—―](?=\d)/g, "-");
 }
 
 /**
