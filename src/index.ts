@@ -24,6 +24,8 @@ import { normalize } from "./routes/normalize.js";
 import { batch } from "./routes/batch.js";
 import { checkout } from "./routes/checkout.js";
 import { webhook } from "./routes/webhook.js";
+import openapiYaml from "../docs/openapi.yaml";
+import openapiGptsYaml from "../docs/openapi-gpts.yaml";
 
 const app = new Hono<AppEnv>();
 
@@ -35,6 +37,22 @@ app.use("*", analyticsMiddleware);
 
 // ヘルスチェック(認証不要、usage/rate-limit も通さない)
 app.route("/api/v1/address/health", health);
+
+// OpenAPI 仕様配信(認証不要、ミドルウェア非通過)
+// 本家: 日英併記 + x-llm-hint + 全 operation 詳細
+// GPTs: 全 description ≤ 300 字、GPT Builder Actions 互換の短縮版
+app.get("/api/v1/address/openapi.yaml", (c) => {
+  return c.body(openapiYaml, 200, {
+    "Content-Type": "text/yaml; charset=utf-8",
+    "Cache-Control": "public, max-age=3600",
+  });
+});
+app.get("/api/v1/address/openapi-gpts.yaml", (c) => {
+  return c.body(openapiGptsYaml, 200, {
+    "Content-Type": "text/yaml; charset=utf-8",
+    "Cache-Control": "public, max-age=3600",
+  });
+});
 
 // Stripe Webhook(認証非通過、署名検証のみ)
 app.route("/api/v1/address/webhook/stripe", webhook);
