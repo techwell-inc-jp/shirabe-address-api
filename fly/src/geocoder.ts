@@ -99,12 +99,17 @@ function buildNormalized(q: AbrQueryJson): string {
 
 let geocoderInstance: AbrGeocoder | null = null;
 let dictionaryPath: string | null = null;
+let lastInitError: string | null = null;
 
 /**
  * Geocoder を初期化する。サーバー起動時に 1 回のみ呼び出す。
  *
  * @param dbPath abr-geocoder のデータディレクトリ(`abrg download -d` で指定した場所)。
  *   内部で `${dbPath}/database/` と `${dbPath}/cache/` が使われる。
+ *
+ * 辞書 DB が未構築の場合は例外を throw せず、`isGeocoderReady()=false` の状態で
+ * 戻る。/internal/health は "loading" を返し、Fly Machine は起動のまま
+ * build-dictionary の完了を待てる設計。
  */
 export async function initGeocoder(dbPath: string): Promise<void> {
   if (geocoderInstance) {
@@ -112,22 +117,30 @@ export async function initGeocoder(dbPath: string): Promise<void> {
   }
   dictionaryPath = dbPath;
 
-  const container = new AbrGeocoderDiContainer({
-    database: {
-      type: "sqlite3",
-      dataDir: path.join(dbPath, "database"),
-    },
-    cacheDir: path.join(dbPath, "cache"),
-    debug: false,
-  });
+  try {
+    const container = new AbrGeocoderDiContainer({
+      database: {
+        type: "sqlite3",
+        dataDir: path.join(dbPath, "database"),
+      },
+      cacheDir: path.join(dbPath, "cache"),
+      debug: false,
+    });
 
-  const numOfThreads = Math.max(1, Math.min(os.availableParallelism(), 4));
+    const numOfThreads = Math.max(1, Math.min(os.availableParallelism(), 4));
 
-  geocoderInstance = await AbrGeocoder.create({
-    container,
-    numOfThreads,
-    isSilentMode: true,
-  });
+    geocoderInstance = await AbrGeocoder.create({
+      container,
+      numOfThreads,
+      isSilentMode: true,
+    });
+    lastInitError = null;
+  } catch (err) {
+    lastInitError = err instanceof Error ? err.message : String(err);
+    console.error(
+      `[geocoder] initialization failed (dictionary not ready?): ${lastInitError}`
+    );
+  }
 }
 
 export function isGeocoderReady(): boolean {
@@ -136,6 +149,10 @@ export function isGeocoderReady(): boolean {
 
 export function getDictionaryPath(): string | null {
   return dictionaryPath;
+}
+
+export function getLastInitError(): string | null {
+  return lastInitError;
 }
 
 /**

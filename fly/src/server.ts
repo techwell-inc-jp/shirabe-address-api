@@ -21,6 +21,7 @@ import {
   geocodeBatch,
   isGeocoderReady,
   getDictionaryPath,
+  getLastInitError,
   closeGeocoder,
   type GeocodeResult,
 } from "./geocoder.js";
@@ -59,6 +60,7 @@ app.get("/internal/health", (c) => {
     status: "ok",
     abr_geocoder: isGeocoderReady() ? "ready" : "loading",
     dictionary_dir: getDictionaryPath(),
+    last_init_error: getLastInitError(),
     phase: 1,
   });
 });
@@ -150,9 +152,15 @@ async function main(): Promise<void> {
   );
   const started = Date.now();
   await initGeocoder(DICTIONARY_DIR);
-  console.log(
-    `[shirabe-address-api fly] dictionary loaded in ${Date.now() - started}ms`
-  );
+  if (isGeocoderReady()) {
+    console.log(
+      `[shirabe-address-api fly] dictionary loaded in ${Date.now() - started}ms`
+    );
+  } else {
+    console.warn(
+      `[shirabe-address-api fly] dictionary NOT ready; /internal/geocode will 503 until build-dictionary completes`
+    );
+  }
 
   serve({ fetch: app.fetch, port: PORT, hostname: HOST });
   console.log(`[shirabe-address-api fly] listening on ${HOST}:${PORT}`);
