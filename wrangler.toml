@@ -15,10 +15,14 @@ zone_name = "shirabe.dev"
 
 [vars]
 API_VERSION = "0.1.0-phase1"
-# Stripe Price ID は経営者が Stripe で Product/Meter/Price を作成後に差し込む
-# STRIPE_PRICE_STARTER = "price_XXX"
-# STRIPE_PRICE_PRO = "price_XXX"
-# STRIPE_PRICE_ENTERPRISE = "price_XXX"
+
+# Stripe Price ID(経営者が 2026-04-21 に Stripe ダッシュボードで作成)
+# Meter: address_api_requests(mtr_61UXv0btCvll6mOOV41DV2wkNs8tV9Ro)
+STRIPE_PRICE_STARTER = "price_1TOWyODV2wkNs8tVqNfkV7Pn"
+STRIPE_PRICE_PRO = "price_1TOWz8DV2wkNs8tVAWNsBJFE"
+STRIPE_PRICE_ENTERPRISE = "price_1TOX03DV2wkNs8tVC6bZ3TIO"
+
+# STRIPE_SECRET_KEY / STRIPE_WEBHOOK_SECRET は `wrangler secret put` で注入
 
 # Fly.io 側エンドポイント URL(実装指示書 §3.3)
 FLYIO_GEOCODE_URL = "https://shirabe-address-api.fly.dev/internal/geocode"

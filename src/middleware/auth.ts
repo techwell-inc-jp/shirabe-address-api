@@ -137,6 +137,12 @@ export async function authMiddleware(c: Context<AppEnv>, next: Next) {
   c.set("customerId", stored.customerId);
   c.set("apiKeyHash", hash);
   c.set("apiKeyIdHash", hash.slice(0, 16));
+  // Stripe Customer ID は AggregatedApiKeyInfo トップレベルに保持される。
+  // 旧フォーマット経由(migrateToAggregated)でも stripeCustomerId は保持される。
+  const stripeCustomerId = (stored as { stripeCustomerId?: string }).stripeCustomerId;
+  if (typeof stripeCustomerId === "string" && stripeCustomerId.length > 0) {
+    c.set("stripeCustomerId", stripeCustomerId);
+  }
 
   await next();
 }

@@ -1,11 +1,17 @@
 /**
  * 利用量ログミドルウェア(住所 API 版)
  *
- * リクエストごとに Cloudflare KV(住所 API 専用 `USAGE_LOGS`)に利用量を記録する。
- * 顧客ID + 日付をキーとしてカウントし、日次バッチで Stripe に報告するためのデータを蓄積する。
+ * 2 つの責務:
+ * 1. KV(`USAGE_LOGS`)に利用量を記録 — 顧客ID + 日付でカウント、月次インデックスも更新。
+ *    後方互換のため暦 API と同じキー形式を維持(住所 API は専用 KV namespace)
+ * 2. 有料プランについて Stripe Meter Event を送信(実装指示書 §3.5) —
+ *    waitUntil でファイア&フォーゲット、失敗はログのみ
+ *
+ * どちらもレスポンス後に非同期で実行する。失敗は握りつぶしてクライアントに影響させない。
  */
 import type { Context, Next } from "hono";
 import type { AppEnv } from "../types/env.js";
+import { isMeteredPlan, sendMeterEvent } from "../services/meter.js";
 
 /**
  * 利用量ログの KV キーを生成する
@@ -79,15 +85,42 @@ export async function usageLoggerMiddleware(c: Context<AppEnv>, next: Next) {
       }
     };
 
+    // 有料プランかつ Stripe Customer ID が紐付いている場合のみ Meter Event を送る。
+    // Free / 匿名ユーザーには送らない(課金対象外)。
+    const plan = c.get("plan") as string | undefined;
+    const stripeCustomerId = c.get("stripeCustomerId") as string | undefined;
+    const stripeSecretKey = c.env.STRIPE_SECRET_KEY;
+    const shouldMeter =
+      isMeteredPlan(plan) &&
+      typeof stripeCustomerId === "string" &&
+      stripeCustomerId.length > 0 &&
+      typeof stripeSecretKey === "string" &&
+      stripeSecretKey.length > 0;
+
+    const recordMeter = async () => {
+      if (!shouldMeter) return;
+      const result = await sendMeterEvent({
+        stripeSecretKey: stripeSecretKey as string,
+        stripeCustomerId: stripeCustomerId as string,
+        value: 1,
+      });
+      if (!result.success) {
+        console.warn("[usage-logger] meter event failed:", result.error);
+      }
+    };
+
     try {
       const ctx = c.executionCtx;
       if (ctx && "waitUntil" in ctx) {
         ctx.waitUntil(recordUsage());
+        ctx.waitUntil(recordMeter());
       } else {
         await recordUsage();
+        await recordMeter();
       }
     } catch {
       await recordUsage();
+      await recordMeter();
     }
   }
 }

@@ -4,11 +4,12 @@
  * Cloudflare Workers 上で動作する住所正規化 REST API(Phase 1)。
  * 実装指示書 20260422-address-api-implementation-order.md に準拠。
  *
- * ミドルウェア適用順(暦 API と同方針):
- * 1. CORS(全エンドポイント)
- * 2. analytics(全ルートのレスポンス後に AE 書込)
- * 3. /api/v1/address/health はそれ以外のミドルウェア非通過
- * 4. /api/v1/address/* には auth → usage-check → rate-limit → usage-logger を適用
+ * ミドルウェア適用方針(暦 API と同じ):
+ *   - /health        : 認証不要、usage/rate-limit 非通過
+ *   - /webhook/stripe: 認証不要(Stripe 署名検証のみ)、rate-limit も非通過
+ *   - /checkout      : 認証不要(ユーザーが購入開始する公開エンドポイント)、
+ *                      rate-limit はかける(乱発防止のため、ただし匿名 Free 枠で充分)
+ *   - /normalize 系   : auth → usage-check → rate-limit → usage-logger の順で適用
  */
 import { Hono } from "hono";
 import { cors } from "hono/cors";
@@ -21,6 +22,8 @@ import { analyticsMiddleware } from "./middleware/analytics.js";
 import { health } from "./routes/health.js";
 import { normalize } from "./routes/normalize.js";
 import { batch } from "./routes/batch.js";
+import { checkout } from "./routes/checkout.js";
+import { webhook } from "./routes/webhook.js";
 
 const app = new Hono<AppEnv>();
 
@@ -28,19 +31,31 @@ const app = new Hono<AppEnv>();
 app.use("*", cors());
 
 // S1 計測: 全ルートのレスポンス後に AE 書込。失敗してもレスポンスに影響させない。
-// CORS の直後・個別ルート/他ミドルウェアより前に登録し、auth 等が set した
-// 値(plan / apiKeyIdHash 等)を await next() 後に読めるようにする。
 app.use("*", analyticsMiddleware);
 
 // ヘルスチェック(認証不要、usage/rate-limit も通さない)
 app.route("/api/v1/address/health", health);
 
-// API エンドポイントに Phase 1 ミドルウェアチェーンを適用
-// 順序: auth → usage-check → rate-limit → usage-logger → route handler
-app.use("/api/v1/address/*", authMiddleware);
-app.use("/api/v1/address/*", usageCheckMiddleware);
-app.use("/api/v1/address/*", rateLimitMiddleware);
-app.use("/api/v1/address/*", usageLoggerMiddleware);
+// Stripe Webhook(認証非通過、署名検証のみ)
+app.route("/api/v1/address/webhook/stripe", webhook);
+
+// Checkout(認証非通過。新規顧客の購入開始エンドポイント)
+app.route("/api/v1/address/checkout", checkout);
+
+// API エンドポイントに Phase 1 ミドルウェアチェーンを適用。
+// Webhook / Checkout / Health に誤マッチさせないため、保護対象パスを **完全一致で列挙** する。
+// ワイルドカード `/normalize/*` は `/normalize` 単独にも重複マッチして
+// ミドルウェアを二重実行する挙動があるため採用しない。
+const PROTECTED_PATHS = [
+  "/api/v1/address/normalize",
+  "/api/v1/address/normalize/batch",
+];
+for (const p of PROTECTED_PATHS) {
+  app.use(p, authMiddleware);
+  app.use(p, usageCheckMiddleware);
+  app.use(p, rateLimitMiddleware);
+  app.use(p, usageLoggerMiddleware);
+}
 
 app.route("/api/v1/address/normalize", normalize);
 app.route("/api/v1/address/normalize/batch", batch);

@@ -86,6 +86,11 @@ export type AppVariables = {
   apiKeyHash: string;
   /** 計測用識別子(SHA-256 先頭16文字)。匿名時は空 */
   apiKeyIdHash: string;
+  /**
+   * Stripe Customer ID(`cus_...`)。課金プラン契約済の顧客のみ設定される。
+   * usage-logger から Meter Events を送る際に使う。匿名/Free は undefined。
+   */
+  stripeCustomerId?: string;
 
   // === 住所 API 固有(normalize/batch ハンドラがセット) ===
   /** AE blob9 相当: success / ambiguous / error */
