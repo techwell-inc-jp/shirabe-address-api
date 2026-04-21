@@ -107,19 +107,34 @@ if (!planInfo) {
 (無用な KV 書込で課金・レート制限に影響しないため、かつ、Webhook 更新が
 競合しないため)
 
-### 4.2 書き込み時は必ず新フォーマット
+### 4.2 書き込みフォーマットは段階的に移行する
 
-書き込みは以下 3 経路に限定される。いずれも **常に新フォーマット** で書く:
+フェーズ別に **段階移行** する。既存 244(+α)テストを無修正で維持するため、
+Phase 1 では暦 API の書込パスを凍結し、Phase 2 で統一する。
 
-1. **新規 APIキー発行**(`checkout/success` 等):
-   - 初回: `apis.<apiName>` のみを持つ新フォーマットで `put`
-2. **Stripe Webhook(プラン変更・suspend)**:
-   - 既存 KV 値を `get` → 新フォーマットか判定
-     - 新フォーマットなら該当 API の `apis.<apiName>` だけ上書き
-     - 旧フォーマットなら `migrateToAggregated` でいったん新フォーマット化し、
-       該当 API の `apis.<apiName>` を設定して `put`
-3. **管理操作**(緊急時の KV 手編集):
-   - ガイドラインとして新フォーマットを厳守(暦 API / 住所 API 両対応のため)
+#### Phase 1(2026-04-22 着手、住所 API Phase 1 リリースまで)
+
+- **暦 API `webhook.ts`**: 旧フォーマット(フラット `plan`)で書き込みを**継続**
+  - 既存 244(+α)テストを **無修正で通過** させるための互換性維持
+  - 暦 API `auth.ts` は `resolveApiPlan` 経由で両フォーマットを透過的に読み取る
+- **住所 API 新規処理**: 必ず新フォーマットで書く(該当鍵が存在しない場合は新規作成、
+  存在する場合は `migrateToAggregated` → `apis.address` セット → `put`)
+- **暦 API `checkout/pending`**: 未変更(平文 APIキー一時格納は集約構造とは別軸)
+
+#### Phase 2(住所 API リリース後、5/6 以降に別タスクで実施)
+
+- **暦 API `webhook.ts`**: 新フォーマット書込に移行
+  - 全 Webhook ハンドラ(checkoutCompleted / paymentFailed / paymentSucceeded /
+    subscriptionDeleted)を aggregated 構造に書き換え
+  - webhook.test.ts のアサーションを `keyInfo.apis.calendar.status` に更新
+- **on-write migration**: 既存の旧フォーマット鍵は自然な Stripe 更新で新形式化
+- **完全移行の完了目安**: Phase 2 着手から 1〜2 ヶ月で過半数が移行する想定
+
+#### Phase 3(移行完了後)
+
+- `LegacyApiKeyInfo` 型と `migrateToAggregated` 関数を削除
+- `ApiKeyInfo`(calendar 側 auth.ts にある旧 export)を削除
+- `resolveApiPlan` を直接 `stored.apis[apiName]` の参照に簡略化
 
 ### 4.3 完全移行(旧フォーマットの駆逐)
 
@@ -221,19 +236,31 @@ await API_KEYS.put(hash, JSON.stringify(aggregated));
 
 ## 8. 本設計書の実装進捗チェックリスト
 
-- [x] 型定義(`src/types/api-key.ts`)— **本日(4/22)完了**
-- [ ] 住所 API 側認証ミドルウェア実装(4/23 予定)
-- [ ] 暦 API 側 `auth.ts` のリファクタ(`resolveApiPlan` に差し替え、4/23-4/24 予定)
-- [ ] 暦 API 244 テストのパス確認(4/24 CI)
-- [ ] Stripe Webhook の `metadata.api_name` 対応(住所 API 側 4/29 予定、暦 API 側は同時更新)
-- [ ] 経営者確認: KV namespace 共有 or 独立(5.1 の判断)
+### Phase 1(2026-04-22 着手、5/6 リリースまで)
+
+- [x] 型定義(住所 API 側 `src/types/api-key.ts`)— **4/22 完了**
+- [x] 型定義(暦 API 側 `src/types/api-key.ts`)— **4/22 完了**(同内容を配置)
+- [x] 暦 API `auth.ts` のリファクタ(`resolveApiPlan(stored, "calendar")` に差し替え)— **4/22 完了**
+- [x] 暦 API 352 テストの無修正パス確認 — **4/22 完了**(CI 緑)
+- [x] KV `API_KEYS` 共有確定(namespace ID `3b6bfff...`) — **4/22 完了**
+- [ ] 住所 API 側認証ミドルウェア実装(4/22 タスク3)
+- [ ] 住所 API Stripe Webhook の `metadata.api_name === "address"` 対応(4/29 予定)
+
+### Phase 2(5/6 以降、別タスク)
+
+- [ ] 暦 API `webhook.ts` の新フォーマット書込移行(全 4 ハンドラ)
+- [ ] webhook.test.ts のアサーション更新(aggregated 構造)
+- [ ] on-write migration の稼働確認(1〜2 ヶ月観測)
+
+### Phase 3(Phase 2 移行完了後)
+
+- [ ] `LegacyApiKeyInfo` 型・`migrateToAggregated` 関数の削除
+- [ ] 暦 API `ApiKeyInfo` export の削除
 
 ---
 
 ## 9. 要経営者確認事項
 
-1. **KV namespace(API_KEYS)の共有 or 独立**:
-   - 共有(推奨): 暦 API の既存 namespace `3b6bfff407974b7cbf79ded8e184c1a6` を住所 API の wrangler.toml にも登録
-   - 独立: 住所 API 用に新 namespace を作成、APIキーが別々(ユーザー摩擦増加)
-   - **Claude Code 推奨: 共有**。Phase 1 時点では共有が最小工数かつ実装指示書 §5.2 の推奨と整合
-2. **旧フォーマットの扱い**: 完全移行タイミング(Phase 2 の on-write migration 採用可否)
+1. ~~KV namespace(API_KEYS)の共有 or 独立~~ → **共有で確定(2026-04-22)**
+2. **旧フォーマットの扱い / Phase 2 移行タイミング**: 住所 API リリース(5/6)後に
+   on-write migration へ切り替えるか、もう少し観測期間を置くかは retros/2026-05.md で判断

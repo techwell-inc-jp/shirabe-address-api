@@ -72,6 +72,10 @@ export type Env = {
  *
  * 暦 API と同形状だが、1キー集約構造における「住所 API としての plan」
  * を住所 API 側で抽出したものを `plan` に格納する。
+ *
+ * 住所 API 固有フィールド(`address*`)は normalize / batch のルートハンドラが
+ * Fly.io 応答を受けた後に `c.set()` し、analytics ミドルウェアがそれを読んで
+ * AE に記録する(実装指示書 §7.2)。
  */
 export type AppVariables = {
   /** 住所 API に対して解決されたプラン */
@@ -82,6 +86,18 @@ export type AppVariables = {
   apiKeyHash: string;
   /** 計測用識別子(SHA-256 先頭16文字)。匿名時は空 */
   apiKeyIdHash: string;
+
+  // === 住所 API 固有(normalize/batch ハンドラがセット) ===
+  /** AE blob9 相当: success / ambiguous / error */
+  addressResponseType?: "success" | "ambiguous" | "error";
+  /** AE blob10 相当: in_coverage / out_of_coverage */
+  addressCoverage?: "in_coverage" | "out_of_coverage";
+  /** AE double2 相当: batch 件数(単一リクエストは 1) */
+  addressBatchSize?: number;
+  /** AE double3 相当: level 0-4 */
+  addressLevel?: 0 | 1 | 2 | 3 | 4;
+  /** AE double4 相当: confidence 0.0-1.0 */
+  addressConfidence?: number;
 };
 
 /**

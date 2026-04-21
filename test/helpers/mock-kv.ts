@@ -1,0 +1,107 @@
+/**
+ * Cloudflare KVNamespaceのモック
+ */
+export class MockKV {
+  private store = new Map<string, { value: string; expiration?: number }>();
+
+  async get(key: string): Promise<string | null> {
+    const entry = this.store.get(key);
+    if (!entry) return null;
+    if (entry.expiration && Date.now() / 1000 > entry.expiration) {
+      this.store.delete(key);
+      return null;
+    }
+    return entry.value;
+  }
+
+  async put(
+    key: string,
+    value: string,
+    options?: { expirationTtl?: number; expiration?: number }
+  ): Promise<void> {
+    // Cloudflare KV の本番挙動に合わせて、expirationTtl < 60 を 400 として拒否する。
+    // これにより「TTL 短すぎ」バグをテストで早期検知できる。
+    if (options?.expirationTtl !== undefined && options.expirationTtl < 60) {
+      throw new Error(
+        `KV PUT failed: 400 Invalid expiration_ttl of ${options.expirationTtl}. Expiration TTL must be at least 60.`
+      );
+    }
+    const expiration = options?.expiration
+      ?? (options?.expirationTtl ? Date.now() / 1000 + options.expirationTtl : undefined);
+    this.store.set(key, { value, expiration });
+  }
+
+  async delete(key: string): Promise<void> {
+    this.store.delete(key);
+  }
+
+  async list(_options?: { prefix?: string }): Promise<{ keys: Array<{ name: string }> }> {
+    const prefix = _options?.prefix ?? "";
+    const keys = Array.from(this.store.keys())
+      .filter((k) => k.startsWith(prefix))
+      .map((name) => ({ name }));
+    return { keys };
+  }
+
+  /** テストヘルパー: ストアをクリア */
+  clear(): void {
+    this.store.clear();
+  }
+
+  /** テストヘルパー: ストアのサイズ */
+  get size(): number {
+    return this.store.size;
+  }
+}
+
+/**
+ * Cloudflare Analytics Engine データセットのモック
+ *
+ * `writeDataPoint` の呼び出し履歴を保持し、テストから検証できるようにする。
+ */
+export class MockAnalyticsEngine {
+  public readonly points: Array<{
+    blobs?: string[];
+    doubles?: number[];
+    indexes?: string[];
+  }> = [];
+
+  /** 呼び出し時に throw させたい場合は true にする(AE障害のシミュレーション) */
+  public throwOnWrite = false;
+
+  writeDataPoint = (point: {
+    blobs?: string[];
+    doubles?: number[];
+    indexes?: string[];
+  }): void => {
+    if (this.throwOnWrite) {
+      throw new Error("[mock] Analytics Engine write failed");
+    }
+    this.points.push(point);
+  };
+
+  clear(): void {
+    this.points.length = 0;
+  }
+
+  get size(): number {
+    return this.points.length;
+  }
+}
+
+/**
+ * テスト用の環境変数モックを作成する(住所 API 版)
+ *
+ * 暦 API の createMockEnv と同形状 + 住所 API 固有(ADDRESS_CACHE / FLYIO_GEOCODE_URL)。
+ */
+export function createMockEnv() {
+  return {
+    API_KEYS: new MockKV() as unknown as KVNamespace,
+    RATE_LIMITS: new MockKV() as unknown as KVNamespace,
+    USAGE_LOGS: new MockKV() as unknown as KVNamespace,
+    ADDRESS_CACHE: new MockKV() as unknown as KVNamespace,
+    ANALYTICS: new MockAnalyticsEngine(),
+    API_VERSION: "0.1.0-test",
+    FLYIO_GEOCODE_URL: "http://localhost:8080/internal/geocode",
+  };
+}
