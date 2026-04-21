@@ -13,6 +13,13 @@ compatibility_date = "2024-12-01"
 pattern = "shirabe.dev/api/v1/address/*"
 zone_name = "shirabe.dev"
 
+# B-1 SEO 静的ページ(/docs/address-normalize, /docs/address-batch, /docs/address-pricing)。
+# 暦 API の `/docs/rokuyo-api` / `/docs/rekichu-api` とはパスが重ならないため、
+# Cloudflare Workers Route の specificity 優先ルールで共存可能。
+[[routes]]
+pattern = "shirabe.dev/docs/address-*"
+zone_name = "shirabe.dev"
+
 [vars]
 API_VERSION = "0.1.0-phase1"
 
