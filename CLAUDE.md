@@ -12,8 +12,8 @@
 - **プロダクト名**: Shirabe Address API
 - **リポジトリ**: `techwell-inc-jp/shirabe-address-api`(Public)
 - **公開 URL**: `https://shirabe.dev`(共通ドメイン、`/api/v1/address/*` に振り分け)
-- **状態**: Phase 1 骨格(2026-04-22 着手、5/3-4 デプロイ可能、5/6 正式リリース目標)
-- **基盤ツール**: abr-geocoder v2.5.1(デジタル庁、MIT)
+- **状態**: 本番稼働準備完了(2026-04-22 時点、Phase 1+2 同時 5/1 正式リリース予定、全 47 都道府県対応)
+- **基盤ツール**: abr-geocoder v2.2.1(デジタル庁、MIT)※ v2.5.1 は npm 未公開のため v2.2.1 を採用(packaging 欠陥は subpath import + 型 shim で吸収)
 - **データ出典**: アドレス・ベース・レジストリ(デジタル庁、CC BY 4.0 互換)
 
 ---
@@ -112,15 +112,15 @@ Stripe Meter / Price ID は経営者が Stripe ダッシュボードで作成後
 
 | 日付 | 主要タスク |
 |---|---|
-| **4/22(火)** | リポジトリ新設 + Workers 骨格 + 型定義(**本日の作業**) |
+| 4/22(火) | リポジトリ新設 + Workers 骨格 + 型定義 |
 | 4/23(水) | 暦 API からミドルウェア移植 |
-| 4/24(木) | Fly.io Dockerfile + abr-geocoder 統合 + Phase 1 辞書構築 |
+| 4/24(木) | Fly.io Dockerfile + abr-geocoder 統合 + 辞書構築 |
 | 4/25(金) | Workers ↔ Fly.io 通信実装 |
 | 4/27-28 | 郵便番号パーサ / 建物名分離 / batch / エラー網羅 |
 | 4/29-30 | Stripe 課金 + OpenAPI + CI/CD |
-| 5/1-2 | E2E テスト + GPTs 短縮版 OpenAPI |
-| **5/3-4** | Phase 1 本番デプロイ可能 |
-| **5/6** | 正式リリース |
+| 4/21 経営判断 | Phase 1+2 分離解消 → 全 47 都道府県同時リリースへ前倒し(5/6 → **5/1**)|
+| 4/22 完了 | 本番デプロイ準備完了(Workers + Fly.io 両側、PR #1-#9 マージ済)|
+| **5/1(木)** | **Phase 1+2 同時正式リリース(全 47 都道府県)** |
 
 ---
 
