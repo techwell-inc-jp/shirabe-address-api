@@ -12,9 +12,11 @@
   "dependencies": {
     "@digital-go-jp/abr-geocoder": "^2.2.1",
     "@hono/node-server": "^1.13.0",
+    "better-sqlite3": "^11.7.0",
     "hono": "^4.7.0"
   },
   "devDependencies": {
+    "@types/better-sqlite3": "^7.6.11",
     "@types/node": "^25.6.0",
     "typescript": "^5.8.0"
   },

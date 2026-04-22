@@ -19,6 +19,8 @@ import {
   SearchTarget,
   type AbrQueryJson,
 } from "@digital-go-jp/abr-geocoder/build/index.js";
+import Database from "better-sqlite3";
+import fs from "node:fs";
 import path from "node:path";
 import os from "node:os";
 
@@ -100,6 +102,128 @@ function buildNormalized(q: AbrQueryJson): string {
 let geocoderInstance: AbrGeocoder | null = null;
 let dictionaryPath: string | null = null;
 let lastInitError: string | null = null;
+let lastPatchReport: {
+  city_null_before: number;
+  ward_null_before: number;
+  city_updated: number;
+  ward_updated: number;
+} | null = null;
+
+/**
+ * common.sqlite の `city` テーブルの NULL 列を空文字に置換する冪等パッチ。
+ *
+ * ## なぜ必要か
+ *
+ * abr-geocoder v2.2.1 の Trie キャッシュ構築で、
+ * `build/drivers/database/sqlite3/geocode/common-db-geocode-sqlite3.js:888` が
+ *
+ *   if (city.city.endsWith('区')) { continue; }
+ *
+ * を実行する。この `city.city` は SQLite の `city` テーブルの `city` 列(エイリアス
+ * 解決後)で、ABR の原データに NULL が入っている行があると
+ * `Cannot read properties of null (reading 'endsWith')` で TypeError を投げる。
+ *
+ * v2.2.1 同ファイルの line 892(`city.city || ''`)と line 922(`!= '' AND IS NOT NULL`)
+ * は NULL と空文字を同等扱いしており、本パッチの `'' 正規化` は意味論を保つ。
+ *
+ * ## 冪等性
+ *
+ * NULL でない行は触らない。再起動のたびに再実行しても安全。
+ * 適用後に abr-geocoder の内部キャッシュ(cache/city-and-ward_*.abrg2 ほか)は
+ * 自動的に作り直される(CityAndWardTrieFinder.createDictionaryFile が
+ * 先頭で `removeFiles` を呼ぶため)。
+ *
+ * ## 注意
+ *
+ * 辞書 DB が未構築(common.sqlite が存在しない)の場合は黙ってスキップする。
+ * build-dictionary.sh が走っている途中で呼ばれても、SQLite の WAL により
+ * 整合性は保たれる(better-sqlite3 の WAL モード既定挙動)。
+ */
+async function patchCommonSqliteNulls(dbPath: string): Promise<void> {
+  const commonDbPath = path.join(dbPath, "database", "common.sqlite");
+
+  if (!fs.existsSync(commonDbPath)) {
+    console.log(
+      `[geocoder] common.sqlite not yet built at ${commonDbPath}; skipping null-patch`,
+    );
+    lastPatchReport = null;
+    return;
+  }
+
+  const db = new Database(commonDbPath);
+  try {
+    const beforeRow = db
+      .prepare(
+        `SELECT
+           SUM(CASE WHEN city IS NULL THEN 1 ELSE 0 END) AS city_null,
+           SUM(CASE WHEN ward IS NULL THEN 1 ELSE 0 END) AS ward_null
+         FROM city`,
+      )
+      .get() as { city_null: number | null; ward_null: number | null };
+
+    const cityNullBefore = beforeRow.city_null ?? 0;
+    const wardNullBefore = beforeRow.ward_null ?? 0;
+
+    let cityUpdated = 0;
+    let wardUpdated = 0;
+
+    if (cityNullBefore > 0 || wardNullBefore > 0) {
+      db.exec("BEGIN IMMEDIATE");
+      try {
+        if (cityNullBefore > 0) {
+          const r = db.prepare("UPDATE city SET city = '' WHERE city IS NULL").run();
+          cityUpdated = r.changes;
+        }
+        if (wardNullBefore > 0) {
+          const r = db.prepare("UPDATE city SET ward = '' WHERE ward IS NULL").run();
+          wardUpdated = r.changes;
+        }
+        db.exec("COMMIT");
+      } catch (e) {
+        db.exec("ROLLBACK");
+        throw e;
+      }
+    }
+
+    lastPatchReport = {
+      city_null_before: cityNullBefore,
+      ward_null_before: wardNullBefore,
+      city_updated: cityUpdated,
+      ward_updated: wardUpdated,
+    };
+
+    console.log(
+      `[geocoder] null-patch: city_null_before=${cityNullBefore} ward_null_before=${wardNullBefore} ` +
+        `city_updated=${cityUpdated} ward_updated=${wardUpdated}`,
+    );
+  } finally {
+    db.close();
+  }
+}
+
+/**
+ * 破棄された / 破損した city-and-ward の Trie キャッシュを削除する。
+ *
+ * パッチ適用で DB 側の NULL 問題を解消した後、既存の cache/city-and-ward_*.abrg2
+ * が過去の失敗した半端書込のまま残っていると `new CityAndWardTrieFinder(first100bytes)`
+ * で検証コケの可能性がある。事前に消しておけば abr-geocoder の
+ * `createDictionaryFile` が確実に作り直す。
+ */
+function clearStaleCacheFiles(dbPath: string): void {
+  const cacheDir = path.join(dbPath, "cache");
+  if (!fs.existsSync(cacheDir)) return;
+  const entries = fs.readdirSync(cacheDir);
+  const targets = entries.filter((e) => e.startsWith("city-and-ward_") && e.endsWith(".abrg2"));
+  for (const f of targets) {
+    const p = path.join(cacheDir, f);
+    try {
+      fs.unlinkSync(p);
+      console.log(`[geocoder] removed stale cache file: ${p}`);
+    } catch (e) {
+      console.warn(`[geocoder] failed to remove stale cache ${p}: ${e instanceof Error ? e.message : String(e)}`);
+    }
+  }
+}
 
 /**
  * Geocoder を初期化する。サーバー起動時に 1 回のみ呼び出す。
@@ -118,6 +242,13 @@ export async function initGeocoder(dbPath: string): Promise<void> {
   dictionaryPath = dbPath;
 
   try {
+    // 1. common.sqlite の city.city / city.ward NULL を空文字化する
+    //    (abr-geocoder v2.2.1 common-db-geocode-sqlite3.js:888 の null.endsWith クラッシュ回避)
+    await patchCommonSqliteNulls(dbPath);
+
+    // 2. 過去に失敗した city-and-ward Trie キャッシュの半端書込を掃除
+    clearStaleCacheFiles(dbPath);
+
     const container = new AbrGeocoderDiContainer({
       database: {
         type: "sqlite3",
@@ -141,6 +272,10 @@ export async function initGeocoder(dbPath: string): Promise<void> {
       `[geocoder] initialization failed (dictionary not ready?): ${lastInitError}`
     );
   }
+}
+
+export function getLastPatchReport(): typeof lastPatchReport {
+  return lastPatchReport;
 }
 
 export function isGeocoderReady(): boolean {
