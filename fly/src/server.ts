@@ -22,6 +22,7 @@ import {
   isGeocoderReady,
   getDictionaryPath,
   getLastInitError,
+  getLastPatchReport,
   closeGeocoder,
   type GeocodeResult,
 } from "./geocoder.js";
@@ -63,7 +64,8 @@ app.get("/internal/health", (c) => {
     abr_geocoder: isGeocoderReady() ? "ready" : "loading",
     dictionary_dir: getDictionaryPath(),
     last_init_error: getLastInitError(),
-    phase: 1,
+    last_patch_report: getLastPatchReport(),
+    coverage_mode: "nationwide",
   });
 });
 
