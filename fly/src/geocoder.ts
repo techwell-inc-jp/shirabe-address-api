@@ -107,9 +107,17 @@ let lastPatchReport: {
   ward_null_before: number;
   incomplete_rows_before: number;
   incomplete_rows_deleted: number;
+  incomplete_rows_skipped_reason: string | null;
   city_updated: number;
   ward_updated: number;
 } | null = null;
+
+/**
+ * DELETE の安全弁。この件数を超えたら DELETE を実行せず警告のみにする。
+ * ABR 全国辞書の `city` テーブルは数万行規模。295 行 ± α 程度の不完全行は期待値だが、
+ * それが桁違いに多ければ条件判定のバグか、DB の破損状態が疑われるため自動補正しない。
+ */
+const INCOMPLETE_ROWS_DELETE_THRESHOLD = 500;
 
 /**
  * common.sqlite の `city` テーブルを Trie 構築可能な状態に整える冪等パッチ。
@@ -121,47 +129,36 @@ let lastPatchReport: {
  *
  *   if (city.city.endsWith('区')) { continue; }
  *
- * を呼び、`city.city` が NULL のときに TypeError を投げる(→ 初回は `/internal/health`
- * が永続 "loading" に張り付く)。これを避けるため PR #7(commit 628435f)で
- * NULL を空文字 '' に置換する単純なパッチを入れた。
+ * を呼び、`city.city` が NULL のときに TypeError を投げる。
  *
- * ## PR #7 で顕在化した二次バグ(本 PR の対象)
+ * ## パッチ進化の履歴
  *
- * 同 `getCityAndWardList` は line 891-900 で
+ * - **PR #7**(commit 628435f): NULL を '' に UPDATE し endsWith クラッシュを回避。
+ *   ただし empty-key ノードが Trie ルートに 295 件追加され catch-all 誤マッチの原因に。
+ * - **PR #8**(commit decdb84): 不完全行 DELETE 方針へ転換。しかし WHERE 条件を
+ *   `(city IS NULL OR city = '') AND (ward IS NULL OR ward = '') AND lg_code IS NULL`
+ *   とした結果、本番デプロイ後に city テーブルが **19 行まで激減** する重大事故を招いた。
+ *   推定原因は PR #7 で既に '' 化された行が大量に存在する状態で `OR ''` を含む条件を
+ *   走らせたため、想定以上の行がマッチしたこと。加えて安全弁(件数チェック)が無く
+ *   自動補正の暴走を止められなかった。
+ * - **本 PR #9**: DELETE 条件を **真に NULL の 3 列同時 NULL** に厳格化し、
+ *   `= ''` は使わない。加えて `INCOMPLETE_ROWS_DELETE_THRESHOLD` の安全弁を追加。
  *
- *   results.push({
- *     key: [(city.city || ''), (city.ward || '')].join(''),
- *     ...city,
- *   });
+ * ## 本 PR の方針
  *
- * と Trie 行を生成する。`city='' AND ward=''` の行は key = '' + '' = '' となり、
- * 295 件すべてが Trie ルートに `key=""` で挿入され **catch-all フォールバック** を
- * 形成する。結果、入力が深くマッチしなかったとき 295 件の先頭(北海道の不完全行が
- * 多数)が返り、「東京都港区六本木 → 北海道松前」のような致命的誤マッチを起こす。
- *
- * 仮説検証(2026-04-22 SSH 調査)で、295 件の全てが以下の特徴を持つことを確認:
- *
- *   - city = NULL(PR #7 適用後は '' )
- *   - ward = NULL(PR #7 適用後は '' )
- *   - lg_code IS NULL
- *   - county IS NULL
- *
- * つまり市区町村としての識別子(lg_code)を持たない「不完全な行政行」で、
- * ABR 原データの CSV で欠損していた行。正規の市区町村データではないため、
- * Trie から除外すべき行である。
- *
- * ## 本パッチの方針(DELETE ファースト)
- *
- * 1. 不完全行 `(city IS NULL OR city = '') AND (ward IS NULL OR ward = '') AND lg_code IS NULL`
- *    を DELETE する(Trie catch-all の根絶)
- * 2. 単独 NULL(city だけ / ward だけ NULL)が残った場合は `''` に正規化し、
- *    `endsWith` クラッシュの再発を防ぐ(防御層)
- * 3. DELETE / UPDATE 件数を `/internal/health.last_patch_report` に公開
+ * 1. **DELETE 条件**: `city IS NULL AND ward IS NULL AND lg_code IS NULL` のみ。
+ *    `OR city = ''` は一切含めない(過去の事故の直接原因)。
+ * 2. **安全弁**: DELETE 対象が `INCOMPLETE_ROWS_DELETE_THRESHOLD` を超える場合は
+ *    DELETE を実行せず警告のみ。自動補正の暴走を防ぐ。想定値は 295 ± α 程度。
+ * 3. **UPDATE 防御層**: 残存する単独 NULL(city だけ / ward だけ NULL)は '' 化して
+ *    endsWith クラッシュ再発を防ぐ(DELETE 条件に合致しない部分 NULL 行のケア)。
+ * 4. **報告**: DELETE/UPDATE 件数と skip 理由を `/internal/health.last_patch_report`
+ *    に公開。
  *
  * ## 冪等性
  *
  * DELETE は WHERE 条件一致が 0 件なら no-op。UPDATE も NULL 行が無ければ 0 件。
- * 2 回目以降の起動では全部 0 件のはず。
+ * 2 回目以降の起動では全部 0 件のはず(辞書再構築後の 1 回目のみ 295 件程度 DELETE)。
  *
  * ## 辞書未構築時
  *
@@ -180,51 +177,65 @@ async function patchCommonSqliteNulls(dbPath: string): Promise<void> {
 
   const db = new Database(commonDbPath);
   try {
-    // Step 1: 計測 — 不完全行・単独 NULL の件数を事前集計
+    // Step 1: 計測 — 真に NULL の不完全行を事前集計(`= ''` は含めない厳格条件)
+    //          件数は DELETE の前に閾値と突き合わせる安全弁にも利用する
     const beforeRow = db
       .prepare(
         `SELECT
            SUM(CASE WHEN city IS NULL THEN 1 ELSE 0 END) AS city_null,
            SUM(CASE WHEN ward IS NULL THEN 1 ELSE 0 END) AS ward_null,
            SUM(CASE
-             WHEN (city IS NULL OR city = '')
-              AND (ward IS NULL OR ward = '')
-              AND lg_code IS NULL
-             THEN 1 ELSE 0 END) AS incomplete_rows
+             WHEN city IS NULL AND ward IS NULL AND lg_code IS NULL
+             THEN 1 ELSE 0 END) AS incomplete_rows,
+           COUNT(*) AS total_rows
          FROM city`,
       )
       .get() as {
       city_null: number | null;
       ward_null: number | null;
       incomplete_rows: number | null;
+      total_rows: number | null;
     };
 
     const cityNullBefore = beforeRow.city_null ?? 0;
     const wardNullBefore = beforeRow.ward_null ?? 0;
     const incompleteBefore = beforeRow.incomplete_rows ?? 0;
+    const totalRows = beforeRow.total_rows ?? 0;
 
     let incompleteDeleted = 0;
+    let incompleteSkippedReason: string | null = null;
     let cityUpdated = 0;
     let wardUpdated = 0;
 
-    if (incompleteBefore > 0 || cityNullBefore > 0 || wardNullBefore > 0) {
+    // Step 2: 安全弁 — DELETE 対象が閾値超過時は実行せず警告のみ
+    const shouldRunDelete =
+      incompleteBefore > 0 && incompleteBefore <= INCOMPLETE_ROWS_DELETE_THRESHOLD;
+
+    if (incompleteBefore > INCOMPLETE_ROWS_DELETE_THRESHOLD) {
+      incompleteSkippedReason =
+        `incomplete_rows=${incompleteBefore} exceeds safety threshold ` +
+        `${INCOMPLETE_ROWS_DELETE_THRESHOLD} (total_rows=${totalRows}); DELETE skipped. ` +
+        `Investigate common.sqlite state (run diagnose-city-nulls.mjs) before proceeding.`;
+      console.warn(`[geocoder] SAFETY-VALVE tripped: ${incompleteSkippedReason}`);
+    }
+
+    if (shouldRunDelete || cityNullBefore > 0 || wardNullBefore > 0) {
       db.exec("BEGIN IMMEDIATE");
       try {
-        // Step 2: 不完全行を DELETE(Trie catch-all の根絶)
-        if (incompleteBefore > 0) {
+        // Step 3: 安全弁を通過した不完全行のみ DELETE
+        if (shouldRunDelete) {
           const r = db
             .prepare(
               `DELETE FROM city
-               WHERE (city IS NULL OR city = '')
-                 AND (ward IS NULL OR ward = '')
+               WHERE city IS NULL
+                 AND ward IS NULL
                  AND lg_code IS NULL`,
             )
             .run();
           incompleteDeleted = r.changes;
         }
 
-        // Step 3: 単独 NULL 行(city のみ NULL / ward のみ NULL)を '' 化
-        //         endsWith クラッシュの再発防止。DELETE 後に残る NULL のみ対象。
+        // Step 4: 残存する単独 NULL を '' 化(endsWith 再クラッシュ防御層)
         const remainingCityNull = db
           .prepare("SELECT COUNT(*) AS n FROM city WHERE city IS NULL")
           .get() as { n: number };
@@ -252,12 +263,15 @@ async function patchCommonSqliteNulls(dbPath: string): Promise<void> {
       ward_null_before: wardNullBefore,
       incomplete_rows_before: incompleteBefore,
       incomplete_rows_deleted: incompleteDeleted,
+      incomplete_rows_skipped_reason: incompleteSkippedReason,
       city_updated: cityUpdated,
       ward_updated: wardUpdated,
     };
 
     console.log(
-      `[geocoder] patch: incomplete_rows_before=${incompleteBefore} deleted=${incompleteDeleted} ` +
+      `[geocoder] patch: total_rows=${totalRows} ` +
+        `incomplete_rows_before=${incompleteBefore} deleted=${incompleteDeleted} ` +
+        (incompleteSkippedReason ? `SKIPPED ` : "") +
         `city_null_before=${cityNullBefore} ward_null_before=${wardNullBefore} ` +
         `city_updated=${cityUpdated} ward_updated=${wardUpdated}`,
     );
