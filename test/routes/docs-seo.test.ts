@@ -20,7 +20,7 @@ async function fetchDoc(path: string) {
 }
 
 describe("GET /docs/address-normalize", () => {
-  it("returns a bilingual SEO page with TechArticle + APIReference + FAQPage JSON-LD", async () => {
+  it("returns a bilingual SEO page with TechArticle + APIReference + WebAPI + FAQPage JSON-LD", async () => {
     const { res, body } = await fetchDoc("/docs/address-normalize");
 
     expect(res.status).toBe(200);
@@ -29,6 +29,7 @@ describe("GET /docs/address-normalize", () => {
     expect(body).toContain('<link rel="canonical" href="https://shirabe.dev/docs/address-normalize">');
     expect(body).toContain('"@type":"TechArticle"');
     expect(body).toContain('"@type":"APIReference"');
+    expect(body).toContain('"@type":"WebAPI"');
     expect(body).toContain('"@type":"FAQPage"');
     expect(body).toContain("住所正規化 API 完全ガイド");
     expect(body).toContain("POST /api/v1/address/normalize");
@@ -38,6 +39,29 @@ describe("GET /docs/address-normalize", () => {
     expect(body).toContain("https://shirabe.dev/docs/address-batch");
     expect(body).toContain("https://shirabe.dev/docs/address-pricing");
     expect(body).toContain("https://shirabe.dev/api/v1/address/openapi.yaml");
+  });
+
+  it("T-03: WebAPI JSON-LD がサービス実体(url / documentation / offers / potentialAction)を記述", async () => {
+    const { body } = await fetchDoc("/docs/address-normalize");
+    // WebAPI は API サービスそのもの
+    expect(body).toContain('"@id":"https://shirabe.dev/#address-webapi"');
+    expect(body).toContain('"url":"https://shirabe.dev/api/v1/address"');
+    expect(body).toContain('"documentation":"https://shirabe.dev/api/v1/address/openapi.yaml"');
+    expect(body).toContain('"@type":"AggregateOffer"');
+    expect(body).toContain('"@type":"EntryPoint"');
+    expect(body).toContain('"urlTemplate":"https://shirabe.dev/api/v1/address/normalize"');
+  });
+
+  it("T-03: 埋め込まれた全 JSON-LD が JSON としてパース可能", async () => {
+    const { body } = await fetchDoc("/docs/address-normalize");
+    const matches = Array.from(
+      body.matchAll(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/g)
+    );
+    expect(matches.length).toBeGreaterThanOrEqual(4);
+    for (const m of matches) {
+      const payload = m[1] ?? "";
+      expect(() => JSON.parse(payload)).not.toThrow();
+    }
   });
 });
 
