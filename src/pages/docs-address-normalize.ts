@@ -66,6 +66,53 @@ const API_LD: Record<string, unknown> = {
   provider: { "@type": "Organization", name: "Techwell Inc.", address: "Fukuoka, Japan", url: "https://shirabe.dev" },
 };
 
+/**
+ * JSON-LD: Schema.org/WebAPI — 住所 API サービス実体(T-03)
+ *
+ * APIReference(ドキュメント)と対を成し、サービスとしての API を構造化する。
+ * AI クローラーが `WebAPI` を認識することで、"Japan address API" のような
+ * サービス名ベース検索で shirabe.dev が引用されやすくなる。
+ */
+const WEBAPI_LD: Record<string, unknown> = {
+  "@context": "https://schema.org",
+  "@type": "WebAPI",
+  "@id": "https://shirabe.dev/#address-webapi",
+  name: "Shirabe Address API",
+  alternateName: "日本住所正規化 API(abr-geocoder / ABR 準拠)",
+  description:
+    "任意の日本住所を abr-geocoder(デジタル庁 ABR、CC BY 4.0)で正規化し、都道府県/市区町村/町字/街区/住居番号・緯度経度・信頼度・出典表記(attribution)を返す REST API。OpenAPI 3.1 準拠、全 47 都道府県対応。",
+  url: "https://shirabe.dev/api/v1/address",
+  documentation: "https://shirabe.dev/api/v1/address/openapi.yaml",
+  termsOfService: "https://shirabe.dev/terms",
+  inLanguage: ["ja", "en"],
+  datePublished: "2026-05-01",
+  dateModified: "2026-04-23",
+  provider: {
+    "@type": "Organization",
+    name: "Techwell Inc.",
+    address: "Fukuoka, Japan",
+    url: "https://shirabe.dev",
+  },
+  isAccessibleForFree: true,
+  offers: {
+    "@type": "AggregateOffer",
+    priceCurrency: "JPY",
+    lowPrice: "0",
+    highPrice: "0.5",
+    offerCount: 4,
+  },
+  potentialAction: {
+    "@type": "Action",
+    name: "Normalize Japanese address",
+    target: {
+      "@type": "EntryPoint",
+      urlTemplate: "https://shirabe.dev/api/v1/address/normalize",
+      contentType: "application/json",
+      httpMethod: "POST",
+    },
+  },
+};
+
 const FAQ_LD: Record<string, unknown> = {
   "@context": "https://schema.org",
   "@type": "FAQPage",
@@ -300,6 +347,6 @@ print(r.json()["normalized"])</code></pre>
     body,
     canonicalUrl: CANONICAL,
     keywords: KEYWORDS,
-    jsonLd: [ARTICLE_LD, API_LD, FAQ_LD],
+    jsonLd: [ARTICLE_LD, API_LD, WEBAPI_LD, FAQ_LD],
   });
 }
