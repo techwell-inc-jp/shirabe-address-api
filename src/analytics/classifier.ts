@@ -172,6 +172,9 @@ export function categorizeEndpoint(normalizedPath: string): EndpointKind {
   }
   if (normalizedPath.startsWith("/internal/")) return "internal";
   if (normalizedPath === "/mcp" || normalizedPath.startsWith("/mcp/")) return "mcp";
+  // B-1 AI クローラーメタデータは /api/ プレフィックス下でも docs_view 扱い
+  // (例: /api/v1/address/llms.txt は AI 向けディスカバリファイル)
+  if (normalizedPath.endsWith("/llms.txt")) return "docs_view";
   if (normalizedPath.startsWith("/api/")) return "api_call";
   // 静的ページ群(/、/terms、/privacy、/legal、/upgrade)は docs_view 扱い
   if (
