@@ -91,3 +91,101 @@ describe("/docs/address-* bypass middleware chain", () => {
     expect(res.status).not.toBe(401);
   });
 });
+
+describe("GET /api/v1/address/llms.txt (T-05)", () => {
+  it("200 を返し、text/markdown を返す", async () => {
+    const { res, body } = await fetchDoc("/api/v1/address/llms.txt");
+    expect(res.status).toBe(200);
+    expect(res.headers.get("Content-Type")?.includes("text/markdown")).toBe(true);
+    expect(body.length).toBeGreaterThan(0);
+  });
+
+  it("H1 と要約(>で始まる引用)を含む(llmstxt.org 仕様)", async () => {
+    const { body } = await fetchDoc("/api/v1/address/llms.txt");
+    expect(body.startsWith("# Shirabe Address API")).toBe(true);
+    expect(body).toContain("> 日本の住所を正規化");
+  });
+
+  it("サイズが 3KB 〜 30KB の範囲に収まる(T-05 完了条件)", async () => {
+    const { body } = await fetchDoc("/api/v1/address/llms.txt");
+    const sizeBytes = new TextEncoder().encode(body).length;
+    expect(sizeBytes).toBeGreaterThanOrEqual(3 * 1024);
+    expect(sizeBytes).toBeLessThanOrEqual(30 * 1024);
+  });
+
+  it("統合版 llms.txt(shirabe.dev/llms.txt)へのリンクを含む", async () => {
+    const { body } = await fetchDoc("/api/v1/address/llms.txt");
+    expect(body).toContain("https://shirabe.dev/llms.txt");
+  });
+
+  it("OpenAPI (本家 + GPTs 短縮) と GPT Store と docs への誘導リンクを含む", async () => {
+    const { body } = await fetchDoc("/api/v1/address/llms.txt");
+    expect(body).toContain("https://shirabe.dev/api/v1/address/openapi.yaml");
+    expect(body).toContain("https://shirabe.dev/api/v1/address/openapi-gpts.yaml");
+    expect(body).toContain("https://shirabe.dev/api/v1/address/health");
+    expect(body).toContain("https://shirabe.dev/docs/address-normalize");
+    expect(body).toContain("https://shirabe.dev/docs/address-batch");
+    expect(body).toContain("https://shirabe.dev/docs/address-pricing");
+    expect(body).toContain("https://github.com/techwell-inc-jp/shirabe-address-api");
+    // 住所 GPT Store(2026-04-23 動作検証済)
+    expect(body).toContain("chatgpt.com/g/g-69e96000b5c08191b21f4d6570ead788");
+  });
+
+  it("主要エンドポイントへの curl 例を含む(normalize + batch + health)", async () => {
+    const { body } = await fetchDoc("/api/v1/address/llms.txt");
+    const curlLines = body.split("\n").filter((line) => /^\s*curl\b/.test(line));
+    expect(curlLines.length).toBeGreaterThanOrEqual(3);
+    expect(body).toContain("POST https://shirabe.dev/api/v1/address/normalize");
+    expect(body).toContain("POST https://shirabe.dev/api/v1/address/normalize/batch");
+    expect(body).toContain("https://shirabe.dev/api/v1/address/health");
+  });
+
+  it("レスポンス構造の主要フィールドを説明(normalized / components / level / confidence / attribution)", async () => {
+    const { body } = await fetchDoc("/api/v1/address/llms.txt");
+    expect(body).toContain("normalized");
+    expect(body).toContain("components");
+    expect(body).toContain("level");
+    expect(body).toContain("confidence");
+    expect(body).toContain("attribution");
+    expect(body).toContain("postal_code");
+    expect(body).toContain("latitude");
+    expect(body).toContain("longitude");
+  });
+
+  it("料金プラン(Free / Starter / Pro / Enterprise)を含む", async () => {
+    const { body } = await fetchDoc("/api/v1/address/llms.txt");
+    expect(body).toContain("Free");
+    expect(body).toContain("Starter");
+    expect(body).toContain("Pro");
+    expect(body).toContain("Enterprise");
+    // 単価(円/回)
+    expect(body).toContain("0.5");
+    expect(body).toContain("0.3");
+    expect(body).toContain("0.1");
+    // Free 枠
+    expect(body).toContain("5,000");
+  });
+
+  it("attribution / CC BY 4.0 / ABR(デジタル庁)を明記", async () => {
+    const { body } = await fetchDoc("/api/v1/address/llms.txt");
+    expect(body).toContain("attribution");
+    expect(body).toContain("CC BY 4.0");
+    expect(body).toContain("アドレス・ベース・レジストリ");
+    expect(body).toContain("abr-geocoder");
+    expect(body).toContain("デジタル庁");
+  });
+
+  it("AI 統合経路(GPTs / Function Calling / LangChain / Dify)を明記", async () => {
+    const { body } = await fetchDoc("/api/v1/address/llms.txt");
+    expect(body).toContain("ChatGPT GPTs");
+    expect(body).toContain("Function Calling");
+    expect(body).toContain("LangChain");
+    expect(body).toContain("Dify");
+  });
+
+  it("認証不要で取得可能(ミドルウェア非通過)", async () => {
+    const { res } = await fetchDoc("/api/v1/address/llms.txt");
+    expect(res.status).toBe(200);
+    expect(res.status).not.toBe(401);
+  });
+});

@@ -11,7 +11,7 @@
  * 暦 API のテストスイートで既に検証済み。
  */
 import { describe, it, expect } from "vitest";
-import { detectContentPlatform } from "../../src/analytics/classifier.js";
+import { detectContentPlatform, categorizeEndpoint } from "../../src/analytics/classifier.js";
 
 describe("detectContentPlatform (住所 API)", () => {
   it("Qiita(qiita.com)は qiita として分類される", () => {
@@ -82,5 +82,20 @@ describe("detectContentPlatform (住所 API)", () => {
     expect(detectContentPlatform("https://zenn.dev/articles/medium.com-alternatives")).toBe(
       "zenn"
     );
+  });
+});
+
+describe("categorizeEndpoint (住所 API、T-05 追加分)", () => {
+  it("/api/v1/address/llms.txt は docs_view(AI クローラー向けメタデータ、/api/ プレフィックスでも API 呼出扱いしない)", () => {
+    expect(categorizeEndpoint("/api/v1/address/llms.txt")).toBe("docs_view");
+  });
+
+  it("/api/v1/address/normalize は api_call(llms.txt 判定が api_call 判定を先取りしないことを確認)", () => {
+    expect(categorizeEndpoint("/api/v1/address/normalize")).toBe("api_call");
+    expect(categorizeEndpoint("/api/v1/address/normalize/batch")).toBe("api_call");
+  });
+
+  it("従来の /llms.txt(root)も引き続き docs_view", () => {
+    expect(categorizeEndpoint("/llms.txt")).toBe("docs_view");
   });
 });
