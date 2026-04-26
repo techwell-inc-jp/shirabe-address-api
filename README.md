@@ -3,12 +3,13 @@
 > 日本の住所を AI エージェント向けに**正規化・構造化・出典表記付き**で返す **AI ネイティブ REST API**。全 47 都道府県対応、2026 年 **5 月 1 日** 正式リリース。
 > An **AI-native REST API** that **normalizes, structures, and attribution-tags** Japanese addresses for AI agents. Nationwide (all 47 prefectures), launching **May 1, 2026**.
 
+[![Launching v1.0.0](https://img.shields.io/badge/Launching-v1.0.0_(2026--05--01)-blue)](https://github.com/techwell-inc-jp/shirabe-address-api/releases)
 [![OpenAPI 3.1](https://img.shields.io/badge/OpenAPI-3.1-6BA539?logo=openapiinitiative&logoColor=white)](https://shirabe.dev/api/v1/address/openapi.yaml)
 [![Cloudflare Workers](https://img.shields.io/badge/Edge-Cloudflare_Workers-F38020?logo=cloudflare&logoColor=white)](https://workers.cloudflare.com/)
 [![Fly.io NRT](https://img.shields.io/badge/Geocoder-Fly.io_NRT-8B5CF6?logo=flydotio&logoColor=white)](https://fly.io/)
 [![abr-geocoder](https://img.shields.io/badge/Engine-abr--geocoder_v2.2.1-0F766E)](https://github.com/digital-go-jp/abr-geocoder)
 [![Data CC BY 4.0](https://img.shields.io/badge/Data-ABR_%7C_CC_BY_4.0-EE5A24)](https://www.digital.go.jp/policies/base_registry_address)
-[![Tests](https://img.shields.io/badge/tests-198_passing-brightgreen)](./test)
+[![Tests](https://img.shields.io/badge/tests-214_passing-brightgreen)](./test)
 
 **Production URL**: `https://shirabe.dev` ・ **OpenAPI 3.1(本家)**: <https://shirabe.dev/api/v1/address/openapi.yaml> ・ **OpenAPI(GPTs 用短縮版)**: <https://shirabe.dev/api/v1/address/openapi-gpts.yaml> ・ **公式サイト**: <https://shirabe.dev>
 
