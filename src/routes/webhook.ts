@@ -373,6 +373,17 @@ async function handleSubscriptionDeleted(
 
 // ─── エントリポイント ─────────────────────────────────────────
 
+/**
+ * Issue #17: dedupe キー TTL(秒)。
+ * Stripe webhook の最大 retry window は 3 日(指数バックオフ)。
+ * 余裕を持たせて 7 日保持し、再送 event を確実に重複検出する。
+ * shirabe-calendar PR #31 と同値。
+ */
+const DEDUPE_TTL_SEC = 7 * 24 * 60 * 60;
+
+/** Issue #17: dedupe キー prefix(USAGE_LOGS namespace 内、shirabe-calendar と同一)。 */
+const DEDUPE_KEY_PREFIX = "webhook-dedupe:";
+
 webhook.post("/", async (c) => {
   const webhookSecret = c.env.STRIPE_WEBHOOK_SECRET;
   if (!webhookSecret) {
@@ -422,13 +433,31 @@ webhook.post("/", async (c) => {
   }
 
   const eventType = typeof event.type === "string" ? event.type : "";
+  const eventId = typeof event.id === "string" ? event.id : undefined;
 
   // metadata.api が指定されている場合は住所 API 以外を弾く(早期リターン)。
   // 指定されていないイベント(invoice.* 等で subscription_details が空)は
   // 個別ハンドラ内で apis.address の存在チェックで判別する。
+  // 注: 他 API skip は dedupe より前に行い、住所 API 以外の event.id を
+  // 住所 API 側 KV に書き込まないようにする(暦 API 側 webhook で別途 dedupe される)。
   const marker = extractApiMarker(event);
   if (marker && marker !== API_MARKER) {
     return c.json({ received: true, skipped: `api=${marker}` });
+  }
+
+  // Issue #17 Step 1: Idempotency check (event.id ベース重複検出)
+  // Stripe は 2xx 返却後でも同じ event を再送する可能性があり(retry / 重複配信)、
+  // 重複処理されると以下の risk が発生する(shirabe-calendar #28 と同値):
+  //   (a) email キー上書き衝突(別顧客が同 email を後で登録した場合)
+  //   (b) payment_failed → payment_succeeded → retry payment_failed の順序逆転
+  //   (c) subscription.updated 古い plan の巻き戻し
+  // event.id 不在(独自テスト等)の場合は dedupe をスキップして従来通り処理する。
+  if (eventId) {
+    const dedupeKey = `${DEDUPE_KEY_PREFIX}${eventId}`;
+    const existing = await c.env.USAGE_LOGS.get(dedupeKey);
+    if (existing) {
+      return c.json({ received: true, deduped: true });
+    }
   }
 
   switch (eventType) {
@@ -450,6 +479,17 @@ webhook.post("/", async (c) => {
     default:
       // 未対応イベントは 200 で ACK(Stripe のリトライを止めるため)
       break;
+  }
+
+  // Issue #17 Step 2: Mark as processed (handler 成功後、return 直前)
+  // 例外発生時は本行に到達せず dedupe キーが書かれない →
+  // Stripe の retry で再処理される(意図通り、処理失敗時は冪等性より retry を優先)。
+  // 未対応イベントも mark しておくことで Stripe retry を抑制する。
+  if (eventId) {
+    const dedupeKey = `${DEDUPE_KEY_PREFIX}${eventId}`;
+    await c.env.USAGE_LOGS.put(dedupeKey, new Date().toISOString(), {
+      expirationTtl: DEDUPE_TTL_SEC,
+    });
   }
 
   return c.json({ received: true });

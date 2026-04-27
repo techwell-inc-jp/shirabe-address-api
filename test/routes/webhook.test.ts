@@ -531,3 +531,299 @@ describe("POST /api/v1/address/webhook/stripe — subscription events", () => {
     expect(info!.apis.address!.stripeSubscriptionId).toBe("sub_1");
   });
 });
+
+// ─── Issue #17: idempotency (event.id ベース重複検出) ─────────
+
+describe("POST /api/v1/address/webhook/stripe — Issue #17: idempotency (event.id ベース重複検出)", () => {
+  describe("同じ event.id が再送された場合", () => {
+    it("二度目は { received: true, deduped: true } で 200 を返す", async () => {
+      const env = envWithSecrets();
+      const hash = "k".repeat(64);
+      await seedPending(env, hash, {
+        apiKey: "shrb_idem_dup",
+        plan: "starter",
+        email: "idem-dup@example.com",
+      });
+
+      const event = {
+        id: "evt_addr_idem_dup_001",
+        type: "checkout.session.completed",
+        data: {
+          object: {
+            metadata: { api: "address", plan: "starter", apiKeyHash: hash },
+            customer: "cus_idem_dup",
+            subscription: "sub_idem_dup",
+          },
+        },
+      };
+
+      const res1 = await postEvent(env, event);
+      expect(res1.status).toBe(200);
+      const body1 = (await res1.json()) as { received: boolean; deduped?: boolean };
+      expect(body1.received).toBe(true);
+      expect(body1.deduped).toBeUndefined();
+
+      const res2 = await postEvent(env, event);
+      expect(res2.status).toBe(200);
+      const body2 = (await res2.json()) as { received: boolean; deduped?: boolean };
+      expect(body2.received).toBe(true);
+      expect(body2.deduped).toBe(true);
+    });
+
+    it("二度目は handler に届かないため、KV state は 1 回目のまま", async () => {
+      const env = envWithSecrets();
+      const hash = "l".repeat(64);
+      await seedPending(env, hash, {
+        apiKey: "shrb_idem_state",
+        plan: "starter",
+        email: "idem-state@example.com",
+      });
+
+      const event = {
+        id: "evt_addr_idem_state_001",
+        type: "checkout.session.completed",
+        data: {
+          object: {
+            metadata: { api: "address", plan: "starter", apiKeyHash: hash },
+            customer: "cus_idem_state",
+            subscription: "sub_idem_state",
+          },
+        },
+      };
+
+      // 1 回目で正常処理 → KV state 確立
+      await postEvent(env, event);
+      const reverse1 = await (env.USAGE_LOGS as unknown as KVNamespace).get(
+        "stripe-reverse:cus_idem_state"
+      );
+      expect(reverse1).toContain(hash);
+
+      // checkout-pending を削除して、もし再処理されたら handler が早期 return する
+      // 状況を作る(が、dedupe で handler に届かないことが目的)
+      await (env.USAGE_LOGS as unknown as KVNamespace).delete(`checkout-pending:${hash}`);
+
+      // 2 回目: dedupe で skip
+      const res2 = await postEvent(env, event);
+      const body2 = (await res2.json()) as { deduped?: boolean };
+      expect(body2.deduped).toBe(true);
+
+      // KV state は 1 回目のまま(handler 不到達の証拠 — 上書きや消失なし)
+      const reverse2 = await (env.USAGE_LOGS as unknown as KVNamespace).get(
+        "stripe-reverse:cus_idem_state"
+      );
+      expect(reverse2).toBe(reverse1);
+    });
+  });
+
+  describe("異なる event.id は通常処理される", () => {
+    it("同一 event type / 異なる event.id は両方処理される", async () => {
+      const env = envWithSecrets();
+      const hash1 = "m".repeat(64);
+      const hash2 = "n".repeat(64);
+      await seedPending(env, hash1, {
+        apiKey: "shrb_diff1",
+        plan: "starter",
+        email: "diff1@example.com",
+      });
+      await seedPending(env, hash2, {
+        apiKey: "shrb_diff2",
+        plan: "starter",
+        email: "diff2@example.com",
+      });
+
+      const event1 = {
+        id: "evt_addr_diff_001",
+        type: "checkout.session.completed",
+        data: {
+          object: {
+            metadata: { api: "address", plan: "starter", apiKeyHash: hash1 },
+            customer: "cus_diff1",
+            subscription: "sub_diff1",
+          },
+        },
+      };
+      const event2 = {
+        id: "evt_addr_diff_002",
+        type: "checkout.session.completed",
+        data: {
+          object: {
+            metadata: { api: "address", plan: "starter", apiKeyHash: hash2 },
+            customer: "cus_diff2",
+            subscription: "sub_diff2",
+          },
+        },
+      };
+
+      const res1 = await postEvent(env, event1);
+      const res2 = await postEvent(env, event2);
+      expect(res1.status).toBe(200);
+      expect(res2.status).toBe(200);
+      const body1 = (await res1.json()) as { deduped?: boolean };
+      const body2 = (await res2.json()) as { deduped?: boolean };
+      expect(body1.deduped).toBeUndefined();
+      expect(body2.deduped).toBeUndefined();
+
+      // 両方の API キーが登録されている
+      expect(await readKey(env, hash1)).not.toBeNull();
+      expect(await readKey(env, hash2)).not.toBeNull();
+    });
+  });
+
+  describe("event.id 不在(後方互換)", () => {
+    it("event.id 不在の場合は dedupe をスキップし、再送も通常処理される", async () => {
+      const env = envWithSecrets();
+      const event = {
+        // id なし
+        type: "unknown.event",
+        data: {},
+      };
+
+      const res1 = await postEvent(env, event);
+      expect(res1.status).toBe(200);
+      const body1 = (await res1.json()) as { received: boolean; deduped?: boolean };
+      expect(body1.received).toBe(true);
+      expect(body1.deduped).toBeUndefined();
+
+      const res2 = await postEvent(env, event);
+      const body2 = (await res2.json()) as { received: boolean; deduped?: boolean };
+      expect(body2.received).toBe(true);
+      // event.id 不在のため dedupe キーが書かれず、再送も通常処理される
+      expect(body2.deduped).toBeUndefined();
+    });
+  });
+
+  describe("dedupe キーの永続化", () => {
+    it("event.id ありのリクエスト後、webhook-dedupe:{eventId} が ISO timestamp で書き込まれる", async () => {
+      const env = envWithSecrets();
+      const event = {
+        id: "evt_addr_ttl_001",
+        type: "unknown.event",
+        data: {},
+      };
+
+      await postEvent(env, event);
+      const stored = await (env.USAGE_LOGS as unknown as KVNamespace).get(
+        "webhook-dedupe:evt_addr_ttl_001"
+      );
+      expect(stored).not.toBeNull();
+      // ISO 8601 形式の timestamp として parse 可能
+      expect(Number.isNaN(Date.parse(stored!))).toBe(false);
+    });
+  });
+
+  describe("未対応イベントも dedupe される", () => {
+    it("unknown.event でも 2 回目は deduped: true", async () => {
+      const env = envWithSecrets();
+      const event = {
+        id: "evt_addr_unknown_001",
+        type: "unknown.event",
+        data: {},
+      };
+
+      const res1 = await postEvent(env, event);
+      expect(res1.status).toBe(200);
+      const body1 = (await res1.json()) as { deduped?: boolean };
+      expect(body1.deduped).toBeUndefined();
+
+      const res2 = await postEvent(env, event);
+      const body2 = (await res2.json()) as { deduped?: boolean };
+      expect(body2.deduped).toBe(true);
+    });
+  });
+
+  describe("payment_failed → payment_succeeded → retry payment_failed 順序逆転防止", () => {
+    it("payment_failed 再送が dedupe され、active → suspended の不正巻き戻しが起きない", async () => {
+      const env = envWithSecrets();
+      const hash = "o".repeat(64);
+      const customerId = "cust_addr_order";
+      const stripeCustomerId = "cus_addr_order";
+
+      // seed: 住所 API 契約済(active)
+      const seedInfo: AggregatedApiKeyInfo = {
+        customerId,
+        stripeCustomerId,
+        email: "order@example.com",
+        createdAt: "2026-04-01T00:00:00Z",
+        apis: {
+          address: {
+            plan: "starter",
+            status: "active",
+            stripeSubscriptionId: "sub_addr_order",
+            updatedAt: "2026-04-01T00:00:00Z",
+          },
+        },
+      };
+      await (env.API_KEYS as unknown as KVNamespace).put(hash, JSON.stringify(seedInfo));
+      await seedReverse(env, stripeCustomerId, customerId, hash);
+
+      const failedEvent = {
+        id: "evt_addr_pf_001",
+        type: "invoice.payment_failed",
+        data: {
+          object: {
+            customer: stripeCustomerId,
+            subscription_details: { metadata: { api: "address" } },
+          },
+        },
+      };
+      const succeededEvent = {
+        id: "evt_addr_ps_001",
+        type: "invoice.payment_succeeded",
+        data: {
+          object: {
+            customer: stripeCustomerId,
+            subscription_details: { metadata: { api: "address" } },
+          },
+        },
+      };
+
+      // 1. payment_failed → suspended
+      await postEvent(env, failedEvent);
+      let info = await readKey(env, hash);
+      expect(info!.apis.address!.status).toBe("suspended");
+
+      // 2. payment_succeeded → active 復帰
+      await postEvent(env, succeededEvent);
+      info = await readKey(env, hash);
+      expect(info!.apis.address!.status).toBe("active");
+
+      // 3. payment_failed retry(同 event.id 再送)→ dedupe で skip、active 維持
+      const res3 = await postEvent(env, failedEvent);
+      const body3 = (await res3.json()) as { deduped?: boolean };
+      expect(body3.deduped).toBe(true);
+
+      info = await readKey(env, hash);
+      expect(info!.apis.address!.status).toBe("active"); // ★ suspended に戻らない
+    });
+  });
+
+  describe("他 API skip と dedupe の優先順位", () => {
+    it("metadata.api=calendar の event は skip され、住所 API 側の dedupe キーは書かれない", async () => {
+      const env = envWithSecrets();
+      const eventId = "evt_addr_other_api_001";
+      const event = {
+        id: eventId,
+        type: "checkout.session.completed",
+        data: {
+          object: {
+            metadata: { api: "calendar", plan: "pro", apiKeyHash: "x".repeat(64) },
+            customer: "cus_calendar_only",
+            subscription: "sub_calendar_only",
+          },
+        },
+      };
+
+      const res = await postEvent(env, event);
+      expect(res.status).toBe(200);
+      const body = (await res.json()) as { received: boolean; skipped?: string };
+      expect(body.skipped).toBe("api=calendar");
+
+      // 暦 API の event.id は住所側 USAGE_LOGS に dedupe キーとして書かれていないことを確認
+      // (暦 API webhook 側で別途 dedupe される)
+      const stored = await (env.USAGE_LOGS as unknown as KVNamespace).get(
+        `webhook-dedupe:${eventId}`
+      );
+      expect(stored).toBeNull();
+    });
+  });
+});
