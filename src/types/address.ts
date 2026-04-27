@@ -8,6 +8,17 @@
 /**
  * 住所コンポーネント(正規化後の構造化部分)
  * 実装指示書 §2.1 の components。
+ *
+ * JIS コード関連フィールド(2026-04-27 追加、Gemini Q3 ideal output 整合):
+ * - jis_code: 5-digit JIS X 0402 市区町村コード(例: "13103" = 東京都港区、検査数字なし)
+ *   Gemini が「正規化結果に含めるべき」と提示した標準フィールド(B-1 Week 1 観測)。
+ * - lg_code: 6-digit 全国地方公共団体コード(例: "131032" = 検査数字込み)
+ *   ABR(アドレス・ベース・レジストリ)公式フィールド、デジタル庁 / 行政システム統合用。
+ * - machiaza_id: ABR 町字 ID(例: "0003000")
+ *   町字レベルの一意識別子、ABR 内の上位集合 join 等の高度 consumer 向け。
+ *
+ * いずれも abr-geocoder のマッチ結果から取得。マッチが市区町村レベル(level=2)以上で
+ * `lg_code` が利用可能。町字レベル(level=3)以上で `machiaza_id` が利用可能。
  */
 export type AddressComponents = {
   prefecture: string | null;
@@ -16,6 +27,9 @@ export type AddressComponents = {
   block: string | null;
   building: string | null;
   floor: string | null;
+  jis_code: string | null;
+  lg_code: string | null;
+  machiaza_id: string | null;
 };
 
 /**

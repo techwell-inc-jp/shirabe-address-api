@@ -66,6 +66,9 @@ describe("formatNormalizeResponse — success case", () => {
       block: "10番1号",
       building: "六本木ヒルズ森タワー",
       floor: "42F",
+      jis_code: "13103",
+      lg_code: "131032",
+      machiaza_id: "0003000",
     });
     expect(result.result!.postal_code).toBe("106-0032");
     expect(result.result!.latitude).toBe(35.660491);
@@ -236,6 +239,112 @@ describe("formatNormalizeResponse — error case", () => {
       },
     });
     expect(result.error?.code).toBe("SERVICE_UNAVAILABLE");
+  });
+});
+
+describe("formatNormalizeResponse — JIS / LG コード(Gemini Q3 ideal output 整合、2026-04-27 追加)", () => {
+  it("6 桁 lg_code をそのまま渡し、5 桁 jis_code は先頭 5 桁から導出する(港区 131032 → 13103)", () => {
+    const result = formatNormalizeResponse({
+      input: "東京都港区六本木6-10-1",
+      flyResult: {
+        input: "東京都港区六本木6-10-1",
+        match: makeFlyMatch({ lg_code: "131032", machiaza_id: "0003000" }),
+        candidates: [],
+      },
+    });
+    expect(result.result!.components.jis_code).toBe("13103");
+    expect(result.result!.components.lg_code).toBe("131032");
+    expect(result.result!.components.machiaza_id).toBe("0003000");
+  });
+
+  it("大阪市北区 271276 → jis_code 27127 を導出する", () => {
+    const result = formatNormalizeResponse({
+      input: "大阪府大阪市北区梅田1-1-3",
+      flyResult: {
+        input: "大阪府大阪市北区梅田1-1-3",
+        match: makeFlyMatch({
+          prefecture: "大阪府",
+          city: "大阪市",
+          ward: "北区",
+          lg_code: "271276",
+          machiaza_id: "0050000",
+        }),
+        candidates: [],
+      },
+    });
+    expect(result.result!.components.jis_code).toBe("27127");
+    expect(result.result!.components.lg_code).toBe("271276");
+    expect(result.result!.components.machiaza_id).toBe("0050000");
+  });
+
+  it("lg_code が null なら jis_code も null(都道府県レベルのみ等)", () => {
+    const result = formatNormalizeResponse({
+      input: "東京都",
+      flyResult: {
+        input: "東京都",
+        match: makeFlyMatch({ lg_code: null, machiaza_id: null, level: 1 }),
+        candidates: [],
+      },
+    });
+    expect(result.result!.components.jis_code).toBeNull();
+    expect(result.result!.components.lg_code).toBeNull();
+    expect(result.result!.components.machiaza_id).toBeNull();
+  });
+
+  it("lg_code が 6 桁数字でない場合は jis_code を null にする(防御的)", () => {
+    const result = formatNormalizeResponse({
+      input: "x",
+      flyResult: {
+        input: "x",
+        // 規格外: 5 桁(検査数字なしで上流が誤って渡した場合)
+        match: makeFlyMatch({ lg_code: "13103", machiaza_id: null }),
+        candidates: [],
+      },
+    });
+    expect(result.result!.components.jis_code).toBeNull();
+    // lg_code 自体は pass-through(上流の生データを保持、消費者が判断)
+    expect(result.result!.components.lg_code).toBe("13103");
+  });
+
+  it("lg_code に英字混入(規格外)→ jis_code を null にする", () => {
+    const result = formatNormalizeResponse({
+      input: "x",
+      flyResult: {
+        input: "x",
+        match: makeFlyMatch({ lg_code: "1310AB", machiaza_id: null }),
+        candidates: [],
+      },
+    });
+    expect(result.result!.components.jis_code).toBeNull();
+  });
+
+  it("ambiguous 候補の各 NormalizedAddress にも jis_code/lg_code/machiaza_id が付与される", () => {
+    const result = formatNormalizeResponse({
+      input: "港区六本木6",
+      flyResult: {
+        input: "港区六本木6",
+        match: null,
+        candidates: [
+          makeFlyMatch({
+            level: 2,
+            confidence: 0.65,
+            rsdt_num: null,
+            rsdt_num2: null,
+            lg_code: "131032",
+            machiaza_id: "0003000",
+          }),
+        ],
+        error: {
+          code: "PARTIAL_MATCH",
+          message: "市区町村までしか特定できませんでした",
+          matched_up_to: "東京都港区",
+          level: 2,
+        },
+      },
+    });
+    expect(result.candidates[0]!.components.jis_code).toBe("13103");
+    expect(result.candidates[0]!.components.lg_code).toBe("131032");
+    expect(result.candidates[0]!.components.machiaza_id).toBe("0003000");
   });
 });
 
