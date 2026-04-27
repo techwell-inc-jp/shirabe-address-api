@@ -83,6 +83,9 @@ paths:
                     block: "10番1号"
                     building: "六本木ヒルズ森タワー"
                     floor: "42F"
+                    jis_code: "13103"
+                    lg_code: "131032"
+                    machiaza_id: "0003000"
                   postal_code: "106-0032"
                   latitude: 35.660491
                   longitude: 139.729223
@@ -144,6 +147,9 @@ paths:
                         block: "10番1号"
                         building: null
                         floor: null
+                        jis_code: "13103"
+                        lg_code: "131032"
+                        machiaza_id: "0003000"
                       postal_code: null
                       latitude: 35.660491
                       longitude: 139.729223
@@ -292,7 +298,7 @@ components:
 
     AddressComponents:
       type: object
-      required: [prefecture, city, town, block, building, floor]
+      required: [prefecture, city, town, block, building, floor, jis_code, lg_code, machiaza_id]
       properties:
         prefecture:
           type: [string, "null"]
@@ -313,6 +319,20 @@ components:
         floor:
           type: [string, "null"]
           example: "42F"
+        jis_code:
+          type: [string, "null"]
+          description: 5-digit JIS X 0402 city code (e.g., "13103" for Minato-ku, Tokyo). Null if match level<2.
+          pattern: '^\d{5}$'
+          example: "13103"
+        lg_code:
+          type: [string, "null"]
+          description: 6-digit nationwide LG code with check digit (ABR official). Null if match level<2.
+          pattern: '^\d{6}$'
+          example: "131032"
+        machiaza_id:
+          type: [string, "null"]
+          description: ABR machiaza (town) identifier. Available for match level>=3.
+          example: "0003000"
 
     NormalizedAddress:
       type: object

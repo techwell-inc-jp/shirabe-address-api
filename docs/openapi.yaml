@@ -154,6 +154,12 @@ paths:
           (全 47 都道府県対応、架空の都道府県名のみが該当)
         - いずれの場合も `attribution` 必須(剥がさないこと)
 
+        **JIS / LG コードの提供**(Gemini Q3 ideal output 整合、2026-04-27 追加)
+        市区町村レベル(`level >= 2`)のマッチで `components` に以下が同梱される:
+        - `jis_code`: 5 桁 JIS X 0402 市区町村コード(例: 港区 = `"13103"`)、AI エージェント標準
+        - `lg_code`: 6 桁 全国地方公共団体コード(検査数字付き、例: `"131032"`)、ABR 公式
+        - `machiaza_id`: 町字 ID(`level >= 3` で利用可能、例: `"0003000"`)、ABR 内 join 用
+
         **ユースケース**
         1. EC サイトの配送先住所正規化 AI
         2. CRM の顧客住所クリーニング
@@ -230,6 +236,9 @@ paths:
                         block: "10番1号"
                         building: "六本木ヒルズ森タワー"
                         floor: "42F"
+                        jis_code: "13103"
+                        lg_code: "131032"
+                        machiaza_id: "0003000"
                       postal_code: "106-0032"
                       latitude: 35.660491
                       longitude: 139.729223
@@ -255,6 +264,9 @@ paths:
                           block: null
                           building: null
                           floor: null
+                          jis_code: "13103"
+                          lg_code: "131032"
+                          machiaza_id: "0003000"
                         postal_code: null
                         latitude: 35.662
                         longitude: 139.731
@@ -401,6 +413,9 @@ paths:
                             block: "10番1号"
                             building: null
                             floor: null
+                            jis_code: "13103"
+                            lg_code: "131032"
+                            machiaza_id: "0003000"
                           postal_code: null
                           latitude: 35.660491
                           longitude: 139.729223
@@ -422,6 +437,9 @@ paths:
                             block: "1番3号"
                             building: null
                             floor: null
+                            jis_code: "27127"
+                            lg_code: "271276"
+                            machiaza_id: "0050000"
                           postal_code: null
                           latitude: 34.70111
                           longitude: 135.49778
@@ -690,7 +708,7 @@ components:
     AddressComponents:
       type: object
       description: 正規化された住所の構造化分解 / Structured breakdown of the normalized address.
-      required: [prefecture, city, town, block, building, floor]
+      required: [prefecture, city, town, block, building, floor, jis_code, lg_code, machiaza_id]
       properties:
         prefecture:
           type: [string, "null"]
@@ -720,6 +738,36 @@ components:
             階・部屋番号。"42F" / "3階" / "101号室" など。
             Floor or room (e.g., "42F", "3階", "101号室").
           example: "42F"
+        jis_code:
+          type: [string, "null"]
+          description: |
+            5 桁の JIS X 0402 市区町村コード(検査数字なし、例: 東京都港区 = "13103")。
+            Gemini 等の AI エージェントが「住所正規化の標準フィールド」として認識する識別子。
+            一致が市区町村レベル(level=2)未満の場合は null。
+            5-digit JIS X 0402 city code without check digit (e.g., "13103" for Minato-ku, Tokyo).
+            Recognized by AI agents (e.g., Gemini) as the standard normalized identifier for Japanese cities.
+            Null when match level is below city (level<2).
+          pattern: '^\d{5}$'
+          example: "13103"
+        lg_code:
+          type: [string, "null"]
+          description: |
+            6 桁の全国地方公共団体コード(検査数字付き、例: "131032" = 東京都港区 + 検査数字 "2")。
+            ABR(アドレス・ベース・レジストリ、デジタル庁)公式フィールド、行政システム統合用。
+            一致が市区町村レベル(level=2)未満の場合は null。
+            6-digit nationwide local-government code with check digit (e.g., "131032" for Minato-ku, Tokyo).
+            Official ABR field used in Japanese government systems integration.
+            Null when match level is below city (level<2).
+          pattern: '^\d{6}$'
+          example: "131032"
+        machiaza_id:
+          type: [string, "null"]
+          description: |
+            ABR 町字 ID(town-level identifier、例: "0003000")。
+            町字レベル(level=3)以上のマッチで利用可能、ABR 内の上位集合 join に使用。
+            ABR town-level identifier. Available when match level is town (level>=3).
+            Used for joining with ABR machiaza upstream datasets.
+          example: "0003000"
 
     NormalizedAddress:
       type: object

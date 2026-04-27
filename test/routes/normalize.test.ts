@@ -165,6 +165,9 @@ describe("POST /api/v1/address/normalize — happy path", () => {
       block: "10番1号",
       building: "六本木ヒルズ森タワー",
       floor: "42F",
+      jis_code: "13103",
+      lg_code: "131032",
+      machiaza_id: "0003000",
     });
     expect(json.attribution.license).toBe("CC BY 4.0");
     expect(fetchFn).toHaveBeenCalledTimes(1);

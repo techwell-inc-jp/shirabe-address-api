@@ -142,6 +142,9 @@ function toNormalizedAddress(
       block: composeBlock(match.block, match.rsdt_num, match.rsdt_num2),
       building: enrichment.building,
       floor: enrichment.floor,
+      jis_code: deriveJisCode(match.lg_code),
+      lg_code: match.lg_code,
+      machiaza_id: match.machiaza_id,
     },
     postal_code: enrichment.postalCode,
     latitude: match.latitude,
@@ -149,6 +152,22 @@ function toNormalizedAddress(
     level: match.level,
     confidence: clampConfidence(match.confidence),
   };
+}
+
+/**
+ * 6-digit `lg_code`(全国地方公共団体コード、検査数字付き)から
+ * 5-digit `jis_code`(JIS X 0402 市区町村コード、検査数字なし)を導出する。
+ *
+ * 例: "131032"(港区) → "13103"
+ *
+ * 入力が 6 桁の数字文字列でない場合は null を返す(防御的)。
+ * Gemini Q3 ideal output 整合(2026-04-27 追加)。
+ */
+function deriveJisCode(lgCode: string | null): string | null {
+  if (!lgCode) return null;
+  if (lgCode.length !== 6) return null;
+  if (!/^\d{6}$/.test(lgCode)) return null;
+  return lgCode.slice(0, 5);
 }
 
 function composeCity(city: string | null, ward: string | null): string | null {
