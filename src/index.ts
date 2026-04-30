@@ -29,6 +29,7 @@ import openapiGptsYaml from "../docs/openapi-gpts.yaml";
 import { renderAddressNormalizeDocPage } from "./pages/docs-address-normalize.js";
 import { renderAddressBatchDocPage } from "./pages/docs-address-batch.js";
 import { renderAddressPricingDocPage } from "./pages/docs-address-pricing.js";
+import { renderApiAddressIndexPage } from "./pages/api-address-index.js";
 
 const app = new Hono<AppEnv>();
 
@@ -56,6 +57,15 @@ app.get("/api/v1/address/openapi-gpts.yaml", (c) => {
     "Cache-Control": "public, max-age=3600",
   });
 });
+
+// /api/v1/address/ インデックスページ(GSC 404 修正、AI agents endpoint discovery hub)
+// 末尾スラッシュあり / なしの両 URL で同一ハンドラ、Cache-Control: 24h。
+app.get("/api/v1/address", (c) =>
+  c.html(renderApiAddressIndexPage(), 200, { "Cache-Control": "public, max-age=86400" })
+);
+app.get("/api/v1/address/", (c) =>
+  c.html(renderApiAddressIndexPage(), 200, { "Cache-Control": "public, max-age=86400" })
+);
 
 // B-1 SEO 静的ページ群(認証不要、ミドルウェア非通過)
 // wrangler.toml で `shirabe.dev/docs/address-*` を本 Worker に振り分け。
