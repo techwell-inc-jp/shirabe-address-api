@@ -338,6 +338,59 @@ print(r.json()["normalized"])</code></pre>
     詳細は <a href="https://shirabe.dev/docs/address-pricing">料金ページ</a> を参照。
   </p>
 </section>
+
+<section class="section">
+  <h2 id="why-hard">なぜ日本住所は機械処理が難しいのか / Why Japanese addresses are hard to parse</h2>
+  <p>
+    Shirabe Address API が解いている課題は、単なる「フリーテキストから緯度経度への変換」ではなく、
+    日本住所固有の <strong>5 つの構造的問題</strong>です。これらは Google Maps Geocoding API や
+    一般的な海外住所 parser では正面から扱えません。
+  </p>
+  <ol>
+    <li>
+      <strong>表記ゆれの多重直交</strong>: 全角 / 半角、漢数字 / 算用数字、ハイフン / 「丁目番号」、
+      旧仮名遣い / 新仮名遣い が独立軸で混在し、組合せ爆発する(例:
+      <code>東京都港区六本木6-10-1</code> ≡ <code>東京都港区六本木六丁目10番1号</code> ≡
+      <code>東京都港区六本木6-10-1</code>(全角))。
+    </li>
+    <li>
+      <strong>町字の改廃と旧町名残存</strong>: 平成の大合併・町名地番整理で旧町名と新町名が
+      実務的に併用される期間が数年〜数十年続く。郵便物配達 / 不動産登記 / 住民票で異なる表記が
+      正本扱いされるケースがある。
+    </li>
+    <li>
+      <strong>住居表示と地番の二重制度</strong>: 都市部は住居表示(街区符号 + 住居番号)、
+      農村部・山間部は地番(本番 + 枝番)を使うが、自治体内で混在する地域がある。
+      ABR は両方を統合管理している。
+    </li>
+    <li>
+      <strong>建物名・部屋番号の自由形式</strong>: 「○○ビル 5F 501 号室」のような自由テキストが
+      住所文字列の末尾に連結されることが多く、町字 / 街区との境界判定が難しい。
+    </li>
+    <li>
+      <strong>同名町字の都道府県跨ぎ</strong>: 「本町」「中央」「栄町」のような汎用町名は
+      多数の自治体に存在し、都道府県名・市区町村名なしの住所文字列は確定不能。
+    </li>
+  </ol>
+  <p>
+    Shirabe Address API は <strong>デジタル庁 ABR(2024 年運用開始の国公式住所辞書)</strong>を
+    基盤とし、これらの軸を <code>components</code> フィールドに分離して返します。AI エージェントが
+    正規化結果を顧客 DB と突合する際、軸ごとの一致判定が可能になります。
+  </p>
+</section>
+
+<section class="section">
+  <h2 id="related">関連リソース / Related resources</h2>
+  <ul>
+    <li><a href="https://shirabe.dev/docs/address-batch">住所一括正規化 API(最大 100 件/req)</a></li>
+    <li><a href="https://shirabe.dev/docs/address-pricing">料金プラン(Free / Starter / Pro / Enterprise)</a></li>
+    <li><a href="https://shirabe.dev/api/v1/address/openapi.yaml">OpenAPI 3.1 仕様(本家、x-llm-hint 付き)</a></li>
+    <li><a href="https://shirabe.dev/api/v1/address/openapi-gpts.yaml">OpenAPI 3.1 仕様(GPTs Actions 短縮版、全 description ≤ 300 字)</a></li>
+    <li><a href="https://shirabe.dev/api/v1/calendar/">Shirabe Calendar API(同一 API キーで利用可、六曜 + 暦注)</a></li>
+    <li><a href="https://shirabe.dev/announcements/2026-05-01">2026-05-01 リリース告知ページ(Multi-AI Landscape narrative 付)</a></li>
+    <li><a href="https://github.com/techwell-inc-jp/shirabe-address-api">GitHub: techwell-inc-jp/shirabe-address-api</a>(Public、MIT)</li>
+  </ul>
+</section>
 `;
 
   return renderSEOPage({
