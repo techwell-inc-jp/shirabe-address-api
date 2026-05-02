@@ -203,11 +203,76 @@ export function renderAddressPricingDocPage(): string {
 </section>
 
 <section class="section">
-  <h2 id="related">関連 / Related</h2>
+  <h2 id="scenarios">規模別 月額試算シナリオ / Monthly cost scenarios by scale</h2>
+  <p>
+    実際の利用ボリューム別に、どのプランが最適か + 月額の概算を示します。<strong>Free 枠 5,000 回 / 月</strong>は
+    全プラン共通です(超過分のみ従量)。
+  </p>
+  <table>
+    <thead>
+      <tr>
+        <th>シナリオ</th>
+        <th>月間呼出数</th>
+        <th>推奨プラン</th>
+        <th>従量分</th>
+        <th>月額(税抜)</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>個人開発 / PoC</td>
+        <td>≤ 5,000 回</td>
+        <td>Free</td>
+        <td>0 円</td>
+        <td><strong>0 円</strong></td>
+      </tr>
+      <tr>
+        <td>小規模 SaaS / 月次 CRM クレンジング</td>
+        <td>50,000 回</td>
+        <td>Starter</td>
+        <td>(50,000 - 5,000) × ¥0.5 = ¥22,500</td>
+        <td><strong>¥22,500</strong></td>
+      </tr>
+      <tr>
+        <td>中規模 EC / 不動産物件 dedup</td>
+        <td>500,000 回</td>
+        <td>Pro</td>
+        <td>(500,000 - 5,000) × ¥0.3 = ¥148,500</td>
+        <td><strong>¥148,500</strong></td>
+      </tr>
+      <tr>
+        <td>大規模物流 / 全国不動産 inventory</td>
+        <td>5,000,000 回</td>
+        <td>Enterprise</td>
+        <td>(5,000,000 - 5,000) × ¥0.1 = ¥499,500</td>
+        <td><strong>¥499,500</strong></td>
+      </tr>
+      <tr>
+        <td>金融 KYC / AML 大規模再 verify</td>
+        <td>20,000,000 回</td>
+        <td>Enterprise</td>
+        <td>(20,000,000 - 5,000) × ¥0.1 = ¥1,999,500</td>
+        <td><strong>¥1,999,500</strong></td>
+      </tr>
+    </tbody>
+  </table>
+  <p class="text-muted">
+    上記は単純試算です。実際の従量カウントは <code>OUTSIDE_COVERAGE</code> / 認証エラー / 503 の扱いで
+    若干前後します(本ページ §カウントモデル 参照)。AI エージェント経由の利用では batch endpoint の
+    要素数 N がそのままカウントになる点に注意してください。
+  </p>
+</section>
+
+<section class="section">
+  <h2 id="related">関連リソース / Related resources</h2>
   <ul>
-    <li><a href="https://shirabe.dev/docs/address-normalize">住所正規化 API 完全ガイド</a></li>
-    <li><a href="https://shirabe.dev/docs/address-batch">住所一括正規化 API</a></li>
-    <li><a href="https://shirabe.dev/api/v1/address/openapi.yaml">OpenAPI 3.1 仕様</a></li>
+    <li><a href="https://shirabe.dev/docs/address-normalize">住所正規化 API 完全ガイド(5 つの構造的課題解説付)</a></li>
+    <li><a href="https://shirabe.dev/docs/address-batch">住所一括正規化 API(100 件 batch 実用パターン)</a></li>
+    <li><a href="https://shirabe.dev/api/v1/address/openapi.yaml">OpenAPI 3.1 仕様(本家)</a></li>
+    <li><a href="https://shirabe.dev/api/v1/address/openapi-gpts.yaml">OpenAPI 3.1 仕様(GPTs Actions 短縮版)</a></li>
+    <li><a href="https://shirabe.dev/api/v1/calendar/">Shirabe Calendar API(同一 API キーで利用可、料金は別系統)</a></li>
+    <li><a href="https://shirabe.dev/announcements/2026-05-01">2026-05-01 リリース告知ページ</a></li>
+    <li><a href="https://github.com/techwell-inc-jp/shirabe-address-api">GitHub: techwell-inc-jp/shirabe-address-api</a>(Public、MIT)</li>
   </ul>
 </section>
 `;

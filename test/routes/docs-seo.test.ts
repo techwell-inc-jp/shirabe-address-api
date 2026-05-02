@@ -107,6 +107,52 @@ describe("GET /docs/address-pricing", () => {
   });
 });
 
+describe("Layer C/E: original narrative + enhanced cross-links (PR follow-up to calendar #39)", () => {
+  it("/docs/address-normalize: includes 'why hard' narrative + calendar API + announcements + GitHub cross-links", async () => {
+    const { body } = await fetchDoc("/docs/address-normalize");
+    // Layer E narrative (原文 5 つの構造的問題)
+    expect(body).toContain("なぜ日本住所は機械処理が難しいのか");
+    expect(body).toContain("表記ゆれの多重直交");
+    expect(body).toContain("町字の改廃");
+    expect(body).toContain("住居表示と地番");
+    expect(body).toContain("建物名・部屋番号");
+    expect(body).toContain("同名町字の都道府県跨ぎ");
+    // Layer C enhanced cross-links
+    expect(body).toContain("https://shirabe.dev/api/v1/calendar/");
+    expect(body).toContain("https://shirabe.dev/announcements/2026-05-01");
+    expect(body).toContain("https://github.com/techwell-inc-jp/shirabe-address-api");
+    expect(body).toContain("https://shirabe.dev/api/v1/address/openapi-gpts.yaml");
+  });
+
+  it("/docs/address-batch: includes 4 real-world batch usage patterns + cross-links", async () => {
+    const { body } = await fetchDoc("/docs/address-batch");
+    // Layer E narrative
+    expect(body).toContain("100 件 batch の実用パターン");
+    expect(body).toContain("CRM クレンジング");
+    expect(body).toContain("EC 配送費試算");
+    expect(body).toContain("不動産");
+    expect(body).toContain("KYC");
+    // Layer C enhanced cross-links
+    expect(body).toContain("https://shirabe.dev/api/v1/calendar/");
+    expect(body).toContain("https://shirabe.dev/announcements/2026-05-01");
+    expect(body).toContain("https://github.com/techwell-inc-jp/shirabe-address-api");
+  });
+
+  it("/docs/address-pricing: includes 5 monthly cost scenarios with concrete amounts + cross-links", async () => {
+    const { body } = await fetchDoc("/docs/address-pricing");
+    // Layer E narrative — 5 規模別シナリオ + 月額試算
+    expect(body).toContain("規模別 月額試算");
+    expect(body).toContain("¥22,500");
+    expect(body).toContain("¥148,500");
+    expect(body).toContain("¥499,500");
+    expect(body).toContain("¥1,999,500");
+    // Layer C enhanced cross-links
+    expect(body).toContain("https://shirabe.dev/api/v1/calendar/");
+    expect(body).toContain("https://shirabe.dev/announcements/2026-05-01");
+    expect(body).toContain("https://github.com/techwell-inc-jp/shirabe-address-api");
+  });
+});
+
 describe("/docs/address-* bypass middleware chain", () => {
   it("does not require an API key (auth middleware is not applied)", async () => {
     // 認証ミドルウェアが掛かっていれば 401 になるはず。ここでは 200 + HTML 本文を期待。

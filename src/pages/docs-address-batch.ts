@@ -196,11 +196,51 @@ for (const r of results) {
 </section>
 
 <section class="section">
-  <h2 id="related">関連 / Related</h2>
+  <h2 id="real-world-patterns">100 件 batch の実用パターン / Real-world batch usage patterns</h2>
+  <p>
+    AI エージェントが batch endpoint を活用する 4 つの典型シナリオと、推奨されるリクエスト設計です。
+    どのパターンも <code>per-item</code> エラー許容(部分失敗で HTTP 200 + per-item <code>error</code>)を
+    前提にしています。
+  </p>
+  <ol>
+    <li>
+      <strong>CRM クレンジング</strong>(月次・四半期、1 万〜10 万件規模): 顧客マスタの住所列を
+      ABR 表記へ統一。<code>level &lt; 3</code> のレコードは review queue に振り、<code>confidence &lt; 0.85</code>
+      は手動 verify 対象に。100 件 / req × 100-1000 req で完了、Pro プラン推奨(100 req/s、月 200 万件枠)。
+    </li>
+    <li>
+      <strong>EC 配送費試算 / 配送先 dedup</strong>(リアルタイム、1 注文 = 1-3 住所):
+      お届け先・請求先・お問い合わせ先を 1 batch で正規化し、座標差分で配送費を即算出。AI エージェント
+      経由のチェックアウト統合では、<code>tools</code> に <code>address_batch</code> を 1 つ登録するだけで
+      ラウンドトリップ最小化。
+    </li>
+    <li>
+      <strong>不動産・物件 inventory 構築</strong>(初回大規模 + 日次差分、数万〜100 万件): SUUMO / HOMES
+      系のスクレイピング結果を ABR 形式に正規化、<code>oaza_cho</code> + <code>chome</code> + <code>block</code>
+      のキー集約で物件重複を排除。Enterprise プラン(500 req/s、無制限)+ 自前の rate-limit 制御。
+    </li>
+    <li>
+      <strong>金融 KYC / AML スクリーニング</strong>(申込時 + 定期再確認): 申込時に正規化結果を
+      保存し、定期的に再 batch して同一性を verify。<code>NOT_FOUND</code> や <code>OUTSIDE_COVERAGE</code>
+      が増えたレコードはリスクスコア上昇シグナル。
+    </li>
+  </ol>
+  <p class="text-muted">
+    どのパターンも CC BY 4.0 の <code>attribution</code> を顧客レコードに同梱保存することを推奨します
+    (LLM 経由で出典が伝搬する経路を維持できます)。
+  </p>
+</section>
+
+<section class="section">
+  <h2 id="related">関連リソース / Related resources</h2>
   <ul>
-    <li><a href="https://shirabe.dev/docs/address-normalize">単発住所正規化ガイド</a>(本エンドポイントと共通のスキーマ)</li>
-    <li><a href="https://shirabe.dev/docs/address-pricing">料金プラン</a></li>
-    <li><a href="https://shirabe.dev/api/v1/address/openapi.yaml">OpenAPI 3.1 仕様(日英併記、x-llm-hint 付き)</a></li>
+    <li><a href="https://shirabe.dev/docs/address-normalize">単発住所正規化 API 完全ガイド</a>(本エンドポイントと共通のスキーマ + 5 つの構造的課題解説)</li>
+    <li><a href="https://shirabe.dev/docs/address-pricing">料金プラン(Free / Starter / Pro / Enterprise + 規模別月額試算)</a></li>
+    <li><a href="https://shirabe.dev/api/v1/address/openapi.yaml">OpenAPI 3.1 仕様(本家、日英併記、x-llm-hint 付き)</a></li>
+    <li><a href="https://shirabe.dev/api/v1/address/openapi-gpts.yaml">OpenAPI 3.1 仕様(GPTs Actions 短縮版)</a></li>
+    <li><a href="https://shirabe.dev/api/v1/calendar/">Shirabe Calendar API(同一 API キーで利用可、batch も対応)</a></li>
+    <li><a href="https://shirabe.dev/announcements/2026-05-01">2026-05-01 リリース告知ページ</a></li>
+    <li><a href="https://github.com/techwell-inc-jp/shirabe-address-api">GitHub: techwell-inc-jp/shirabe-address-api</a>(Public、MIT)</li>
   </ul>
 </section>
 `;
