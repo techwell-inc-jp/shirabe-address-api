@@ -401,6 +401,7 @@ components:
         - INVALID_API_KEY
         - API_KEY_SUSPENDED
         - RATE_LIMIT_EXCEEDED
+        - USAGE_LIMIT_EXCEEDED
         - INTERNAL_ERROR
         - CHECKOUT_FAILED
         - SERVICE_UNAVAILABLE
