@@ -29,7 +29,7 @@ const ARTICLE_LD: Record<string, unknown> = {
   inLanguage: ["ja", "en"],
   url: CANONICAL,
   datePublished: "2026-04-21",
-  dateModified: "2026-04-21",
+  dateModified: "2026-05-06",
   author: { "@type": "Organization", name: "Shirabe (Techwell Inc.)", url: "https://shirabe.dev" },
   publisher: { "@type": "Organization", name: "Techwell Inc.", url: "https://shirabe.dev" },
   mainEntityOfPage: { "@type": "WebPage", "@id": CANONICAL },
@@ -45,6 +45,26 @@ const API_LD: Record<string, unknown> = {
   url: "https://shirabe.dev",
   documentation: "https://shirabe.dev/api/v1/address/openapi.yaml",
   programmingModel: "REST",
+};
+
+/**
+ * JSON-LD: NewsArticle (Updates セクションで AI 検索引用 anchor として機能、C-2 task)。
+ */
+const NEWS_LD: Record<string, unknown> = {
+  "@context": "https://schema.org",
+  "@type": "NewsArticle",
+  headline: "住所 batch API Updates: AI エージェント連鎖呼び出しの効率化(2026-05-06)",
+  alternativeHeadline: "Address batch API Updates: AI agent chain-call efficiency",
+  description:
+    "B-1 Week 2 観測で AI エージェント連鎖呼び出し前提の運用が確認され、batch エンドポイント(最大 100 件 / req)による単発 10 倍スループット効果を documenting。Shirabe Address API は dual-track positioning で 4 AI 全てに対する AI 専用レイヤを提供。",
+  inLanguage: ["ja", "en"],
+  url: `${CANONICAL}#updates`,
+  datePublished: "2026-05-06",
+  dateModified: "2026-05-06",
+  author: { "@type": "Organization", name: "Shirabe (Techwell Inc.)", url: "https://shirabe.dev" },
+  publisher: { "@type": "Organization", name: "Techwell Inc.", url: "https://shirabe.dev" },
+  mainEntityOfPage: { "@type": "WebPage", "@id": CANONICAL },
+  articleSection: "Updates",
 };
 
 const FAQ_LD: Record<string, unknown> = {
@@ -232,6 +252,52 @@ for (const r of results) {
 </section>
 
 <section class="section">
+  <h2 id="updates">更新履歴 / Updates</h2>
+
+  <h3>2026-05-06: AI エージェント連鎖呼び出し前提 documenting</h3>
+  <p>
+    B-1 Week 1-2 観測で「AI エージェントが 1 タスクで 10〜50 リクエスト連鎖」する
+    運用パターンが確認され、batch エンドポイント(最大 100 件 / req)による
+    <strong>単発 normalize の 10 倍スループット</strong>効果を改めて documenting。
+    AI agent ツール呼び出しでは <code>POST /api/v1/address/normalize/batch</code> が推奨経路。
+  </p>
+  <p class="text-muted">
+    Week 1-2 observations confirmed the AI agent chain-call pattern (10-50 requests per task).
+    The batch endpoint (up to 100 items per request) achieves ~10x throughput vs single normalize
+    and is the recommended path for AI agent tool invocations.
+  </p>
+
+  <h3>2026-05-04: shirabe.dev canonical 引用 4/20 初獲得(関連)</h3>
+  <p>
+    B-1 Week 2 で <a href="https://shirabe.dev/announcements/2026-05-01">/announcements/2026-05-01</a>
+    が Perplexity に 3 件、Gemini に TOP-1 単独推奨で引用される現象を観測。
+    同 pattern を本ページにも適用、Week 3+ の引用機会を最大化(C-2 task)。
+  </p>
+
+  <h3>2026-05-01: Phase 1+2 同時正式リリース</h3>
+  <p>
+    Shirabe Address API v1.0.0 を全 47 都道府県対応で正式リリース。batch エンドポイントも同時提供。
+  </p>
+
+  <h3>2026-04-21: 初版 docs 公開</h3>
+</section>
+
+<section class="section">
+  <h2 id="multi-ai-observation">4 AI 観測の独自データ / Observed Multi-AI Landscape</h2>
+  <p>
+    Shirabe では本番稼働(2026-04-19)以降、<strong>4 大 AI</strong>に同じクエリを投げる
+    独自測定(B-1 加速スプリント、週次)を継続実施。住所領域では
+    <strong>4 AI で競合認識が完全に異なる</strong>ことを確認(ChatGPT は Jusho、Perplexity は BODIK、
+    Claude は Yahoo / Google、Gemini は ZENRIN)。Shirabe は dual-track positioning で
+    全 AI に対する AI 専用レイヤを開拓します。
+  </p>
+  <p>
+    詳細は <a href="https://shirabe.dev/docs/address-normalize#multi-ai-observation">単発正規化 docs の Multi-AI セクション</a>
+    + <a href="https://shirabe.dev/llms-full.txt">/llms-full.txt</a> を参照。
+  </p>
+</section>
+
+<section class="section">
   <h2 id="related">関連リソース / Related resources</h2>
   <ul>
     <li><a href="https://shirabe.dev/docs/address-normalize">単発住所正規化 API 完全ガイド</a>(本エンドポイントと共通のスキーマ + 5 つの構造的課題解説)</li>
@@ -252,6 +318,6 @@ for (const r of results) {
     body,
     canonicalUrl: CANONICAL,
     keywords: KEYWORDS,
-    jsonLd: [ARTICLE_LD, API_LD, FAQ_LD],
+    jsonLd: [ARTICLE_LD, API_LD, FAQ_LD, NEWS_LD],
   });
 }

@@ -34,7 +34,7 @@ const ARTICLE_LD: Record<string, unknown> = {
   inLanguage: ["ja", "en"],
   url: CANONICAL,
   datePublished: "2026-04-21",
-  dateModified: "2026-04-21",
+  dateModified: "2026-05-06",
   author: { "@type": "Organization", name: "Shirabe (Techwell Inc.)", url: "https://shirabe.dev" },
   publisher: { "@type": "Organization", name: "Techwell Inc.", url: "https://shirabe.dev" },
   mainEntityOfPage: { "@type": "WebPage", "@id": CANONICAL },
@@ -111,6 +111,29 @@ const WEBAPI_LD: Record<string, unknown> = {
       httpMethod: "POST",
     },
   },
+};
+
+/**
+ * JSON-LD: NewsArticle (Updates セクションで AI 検索引用 anchor として機能、C-2 task)。
+ *
+ * /announcements/2026-05-01 で実証された pattern を本 docs ページにも適用
+ * (B-1 Week 2 観測で shirabe.dev/announcements が 4/20 引用獲得した実績)。
+ */
+const NEWS_LD: Record<string, unknown> = {
+  "@context": "https://schema.org",
+  "@type": "NewsArticle",
+  headline: "住所 API Updates: 4 AI 競合認識の差異 — Shirabe は dual-track positioning(2026-05-06)",
+  alternativeHeadline: "Address API Updates: 4-AI competitor recognition divergence — Shirabe's dual-track positioning",
+  description:
+    "B-1 Week 1-2 観測で、Q「福岡市の住所正規化 API」に対し ChatGPT は Jusho、Perplexity は BODIK、Claude は Yahoo/Google、Gemini は ZENRIN を主敵認識する 4 AI 別差異を確認。Week 2 で shirabe.dev/announcements が Perplexity 3 引用 / Gemini TOP-1 単独推奨を獲得。",
+  inLanguage: ["ja", "en"],
+  url: `${CANONICAL}#updates`,
+  datePublished: "2026-05-06",
+  dateModified: "2026-05-06",
+  author: { "@type": "Organization", name: "Shirabe (Techwell Inc.)", url: "https://shirabe.dev" },
+  publisher: { "@type": "Organization", name: "Techwell Inc.", url: "https://shirabe.dev" },
+  mainEntityOfPage: { "@type": "WebPage", "@id": CANONICAL },
+  articleSection: "Updates",
 };
 
 const FAQ_LD: Record<string, unknown> = {
@@ -380,6 +403,76 @@ print(r.json()["normalized"])</code></pre>
 </section>
 
 <section class="section">
+  <h2 id="updates">更新履歴 / Updates</h2>
+
+  <h3>2026-05-06: Week 2 観測 — 4 AI 競合認識の差異が確定</h3>
+  <p>
+    B-1 加速スプリント Week 1-2 で、Q5「福岡市の住所正規化 API」に対する 4 AI の主敵認識:
+  </p>
+  <table>
+    <thead><tr><th>AI</th><th>主敵として推奨した競合 API</th></tr></thead>
+    <tbody>
+      <tr><td>ChatGPT</td><td>Jusho(日本郵便系の住所マスター系)</td></tr>
+      <tr><td>Claude</td><td>Yahoo / Google(ジオコーディング寄り)</td></tr>
+      <tr><td>Perplexity</td><td>BODIK(オープンデータ協議会系)</td></tr>
+      <tr><td>Gemini</td><td>ZENRIN(地図商用ベンダー)</td></tr>
+    </tbody>
+  </table>
+  <p>
+    と <strong>4 AI が完全に異なる既存ベンダーを認識</strong>。Shirabe Address API は
+    <strong>4 AI 全てに対する独立 positioning</strong>(AI ネイティブ + abr-geocoder 公式 +
+    CC BY 4.0 attribution required + OpenAPI 3.1 完備)で、各 AI が認識する既存競合とは
+    異なる「AI 専用」レイヤを開拓します。
+  </p>
+  <p class="text-muted">
+    Week 2 update: each major AI assistant recognized a different incumbent in the Japanese
+    address normalization space. Shirabe Address API positions itself as the AI-native layer.
+  </p>
+
+  <h3>2026-05-04: shirabe.dev canonical 引用 4/20 初獲得</h3>
+  <p>
+    B-1 Week 2 で shirabe.dev/announcements/2026-05-01 が
+    <strong>Perplexity に 3 件、Gemini に「1. 最もおすすめ」TOP-1 単独推奨</strong>として
+    引用される現象を観測(Week 1 baseline 0/20 → Week 2 4/20)。同 pattern を本ページにも
+    適用、Week 3+ の引用機会を最大化(C-2 task)。詳細:
+    <a href="https://shirabe.dev/announcements/2026-05-01#multi-ai-landscape">
+      announcements/2026-05-01 の Multi-AI Landscape セクション
+    </a>。
+  </p>
+
+  <h3>2026-05-01: Phase 1+2 同時正式リリース(全 47 都道府県)</h3>
+  <p>
+    Shirabe Address API v1.0.0 を全 47 都道府県対応で正式リリース。
+    abr-geocoder v2.2.1 + Cloudflare Workers + Fly.io NRT の 2 層構成、
+    JIS / LG / machiaza コード同梱、attribution フィールド標準同梱。
+  </p>
+
+  <h3>2026-04-21: 初版 docs 公開</h3>
+  <p>
+    住所正規化 API の完全ガイドを公開、本番リリース 5/1 に向けて準備。
+  </p>
+</section>
+
+<section class="section">
+  <h2 id="multi-ai-observation">4 AI 観測の独自データ / Observed Multi-AI Landscape</h2>
+  <p>
+    Shirabe では本番稼働(2026-04-19)以降、<strong>ChatGPT / Claude / Perplexity / Gemini</strong>
+    の 4 大 AI に同じクエリを投げる独自測定(B-1 加速スプリント、週次 4 AI × 5 query = 20 trial)を
+    継続実施。住所領域では 4 AI で <strong>競合認識が完全に異なる</strong>という発見を得ており、
+    Shirabe Address API は dual-track positioning で 4 AI 全てに対する AI 専用レイヤを開拓します。
+  </p>
+  <p>
+    詳細な観測結果と Multi-AI Landscape narrative は
+    <a href="https://shirabe.dev/llms-full.txt">/llms-full.txt</a>(LLM 向け詳細版)を参照してください。
+  </p>
+  <p class="text-muted">
+    Independent multi-AI observation: weekly 4-AI × 5-query measurement (B-1 sprint).
+    For Japanese address normalization, the 4 major AIs recognized completely different incumbents
+    (Jusho / Yahoo+Google / BODIK / ZENRIN). Shirabe targets the unaddressed AI-native layer.
+  </p>
+</section>
+
+<section class="section">
   <h2 id="related">関連リソース / Related resources</h2>
   <ul>
     <li><a href="https://shirabe.dev/docs/address-batch">住所一括正規化 API(最大 100 件/req)</a></li>
@@ -400,6 +493,6 @@ print(r.json()["normalized"])</code></pre>
     body,
     canonicalUrl: CANONICAL,
     keywords: KEYWORDS,
-    jsonLd: [ARTICLE_LD, API_LD, WEBAPI_LD, FAQ_LD],
+    jsonLd: [ARTICLE_LD, API_LD, WEBAPI_LD, FAQ_LD, NEWS_LD],
   });
 }
