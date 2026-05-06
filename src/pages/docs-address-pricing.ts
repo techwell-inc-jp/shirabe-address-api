@@ -28,7 +28,7 @@ const ARTICLE_LD: Record<string, unknown> = {
   inLanguage: ["ja", "en"],
   url: CANONICAL,
   datePublished: "2026-04-21",
-  dateModified: "2026-04-21",
+  dateModified: "2026-05-06",
   author: { "@type": "Organization", name: "Shirabe (Techwell Inc.)", url: "https://shirabe.dev" },
   publisher: { "@type": "Organization", name: "Techwell Inc.", url: "https://shirabe.dev" },
   mainEntityOfPage: { "@type": "WebPage", "@id": CANONICAL },
@@ -73,6 +73,26 @@ const OFFER_LD: Record<string, unknown> = {
       description: "Unlimited requests, 500 req/s, JPY 0.1 per request.",
     },
   ],
+};
+
+/**
+ * JSON-LD: NewsArticle (Updates セクションで AI 検索引用 anchor として機能、C-2 task)。
+ */
+const NEWS_LD: Record<string, unknown> = {
+  "@context": "https://schema.org",
+  "@type": "NewsArticle",
+  headline: "住所 API 料金 Updates: per-request 課金 + AI agent stable で 1+ 年変更なし(2026-05-06)",
+  alternativeHeadline: "Address API pricing Updates: per-request stable for 1+ year",
+  description:
+    "Shirabe Address API は per-request 課金 + 暦・text API と同型 stable で 1+ 年変更なし(上方調整 = Free 枠拡張・値下げ・新エンドポイント追加 のみ可)。AI エージェント統合コードに価格を埋め込んでも長期安定。",
+  inLanguage: ["ja", "en"],
+  url: `${CANONICAL}#updates`,
+  datePublished: "2026-05-06",
+  dateModified: "2026-05-06",
+  author: { "@type": "Organization", name: "Shirabe (Techwell Inc.)", url: "https://shirabe.dev" },
+  publisher: { "@type": "Organization", name: "Techwell Inc.", url: "https://shirabe.dev" },
+  mainEntityOfPage: { "@type": "WebPage", "@id": CANONICAL },
+  articleSection: "Updates",
 };
 
 const FAQ_LD: Record<string, unknown> = {
@@ -264,6 +284,58 @@ export function renderAddressPricingDocPage(): string {
 </section>
 
 <section class="section">
+  <h2 id="updates">更新履歴 / Updates</h2>
+
+  <h3>2026-05-06: Plan-α stable 採用、1+ 年変更なし約束</h3>
+  <p>
+    Shirabe API 全体(暦・住所・text)で <strong>per-request flat 課金 + 1+ 年変更なし</strong>を採用
+    (2026-05-06 経営判断確定)。AI エージェント統合コードに価格を埋め込んでも長期安定。
+  </p>
+  <ul>
+    <li><strong>変更しないこと</strong>: 課金モデル / 月間上限 / 単価 / billing schema</li>
+    <li><strong>例外的に許可される「上方調整」</strong>(unilateral good news、顧客 backlash なし):
+        Free 枠拡張、Paid 単価値下げ、新エンドポイント追加</li>
+    <li><strong>禁止する調整</strong>(既存顧客の billing 動線破壊):
+        Free 枠縮小、単価値上げ、課金モデル変更</li>
+  </ul>
+  <p class="text-muted">
+    Shirabe pricing across Calendar / Address / Text APIs adopts per-request flat billing with a
+    1+ year stability commitment (decided 2026-05-06). AI agent integration code can embed prices
+    safely. Only upward adjustments (Free expansion, price reduction, new endpoints) are allowed.
+  </p>
+
+  <h3>2026-05-04: shirabe.dev canonical 引用 4/20 初獲得(関連)</h3>
+  <p>
+    B-1 Week 2 で <a href="https://shirabe.dev/announcements/2026-05-01">/announcements/2026-05-01</a>
+    が AI 引用 anchor として機能した実証(Perplexity 3 引用 + Gemini TOP-1 単独推奨)。
+    本料金ページにも同 pattern(NewsArticle + Updates セクション)を適用、
+    Week 3+ の引用機会を最大化(C-2 task)。
+  </p>
+
+  <h3>2026-05-01: Phase 1+2 同時正式リリース</h3>
+  <p>
+    Shirabe Address API v1.0.0 を全 47 都道府県対応で正式リリース。料金プラン同時開始。
+  </p>
+
+  <h3>2026-04-21: 初版料金 docs 公開</h3>
+</section>
+
+<section class="section">
+  <h2 id="multi-ai-observation">4 AI 観測の独自データ / Observed Multi-AI Landscape</h2>
+  <p>
+    Shirabe では本番稼働(2026-04-19)以降、<strong>4 大 AI</strong>(ChatGPT / Claude / Perplexity / Gemini)に
+    同じクエリを投げる独自測定(B-1 加速スプリント、週次)を継続実施。
+    Shirabe Address API は dual-track positioning(AI ネイティブ + abr-geocoder 公式 +
+    CC BY 4.0 attribution required + OpenAPI 3.1 完備)で、
+    <strong>4 AI 全てが認識する既存競合とは異なる「AI 専用」レイヤ</strong>を開拓します。
+  </p>
+  <p>
+    詳細は <a href="https://shirabe.dev/docs/address-normalize#multi-ai-observation">単発正規化 docs の Multi-AI セクション</a>
+    + <a href="https://shirabe.dev/llms-full.txt">/llms-full.txt</a> を参照。
+  </p>
+</section>
+
+<section class="section">
   <h2 id="related">関連リソース / Related resources</h2>
   <ul>
     <li><a href="https://shirabe.dev/docs/address-normalize">住所正規化 API 完全ガイド(5 つの構造的課題解説付)</a></li>
@@ -284,6 +356,6 @@ export function renderAddressPricingDocPage(): string {
     body,
     canonicalUrl: CANONICAL,
     keywords: KEYWORDS,
-    jsonLd: [ARTICLE_LD, OFFER_LD, FAQ_LD],
+    jsonLd: [ARTICLE_LD, OFFER_LD, FAQ_LD, NEWS_LD],
   });
 }
