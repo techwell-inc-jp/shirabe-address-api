@@ -153,6 +153,23 @@ describe("Layer C/E: original narrative + enhanced cross-links (PR follow-up to 
   });
 });
 
+describe("text API cross-links (B-3 relevance signal, 5/31 リリース連動)", () => {
+  it("/docs/address-normalize: links to /docs/text-normalize(表記正規化 semantic 直結)", async () => {
+    const { body } = await fetchDoc("/docs/address-normalize");
+    expect(body).toContain("/docs/text-normalize");
+  });
+
+  it("/docs/address-batch: links to /docs/text-name-split(B2B identifier セット narrative)", async () => {
+    const { body } = await fetchDoc("/docs/address-batch");
+    expect(body).toContain("/docs/text-name-split");
+  });
+
+  it("/docs/address-pricing: links to /docs/text-pricing(3 API pricing relevance cluster)", async () => {
+    const { body } = await fetchDoc("/docs/address-pricing");
+    expect(body).toContain("/docs/text-pricing");
+  });
+});
+
 describe("/docs/address-* bypass middleware chain", () => {
   it("does not require an API key (auth middleware is not applied)", async () => {
     // 認証ミドルウェアが掛かっていれば 401 になるはず。ここでは 200 + HTML 本文を期待。
