@@ -305,6 +305,7 @@ for (const r of results) {
     <li><a href="https://shirabe.dev/api/v1/address/openapi.yaml">OpenAPI 3.1 仕様(本家、日英併記、x-llm-hint 付き)</a></li>
     <li><a href="https://shirabe.dev/api/v1/address/openapi-gpts.yaml">OpenAPI 3.1 仕様(GPTs Actions 短縮版)</a></li>
     <li><a href="https://shirabe.dev/api/v1/calendar/">Shirabe Calendar API(同一 API キーで利用可、batch も対応)</a></li>
+    <li><a href="https://shirabe.dev/docs/text-name-split">Shirabe Text API /name-split(姓名分割、住所 + 姓名 = B2B 顧客レコード identifier セット、2026-05-31 リリース)</a></li>
     <li><a href="https://shirabe.dev/announcements/2026-05-01">2026-05-01 リリース告知ページ</a></li>
     <li><a href="https://github.com/techwell-inc-jp/shirabe-address-api">GitHub: techwell-inc-jp/shirabe-address-api</a>(Public、MIT)</li>
   </ul>
