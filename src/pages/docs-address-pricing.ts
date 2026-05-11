@@ -343,7 +343,7 @@ export function renderAddressPricingDocPage(): string {
     <li><a href="https://shirabe.dev/api/v1/address/openapi.yaml">OpenAPI 3.1 仕様(本家)</a></li>
     <li><a href="https://shirabe.dev/api/v1/address/openapi-gpts.yaml">OpenAPI 3.1 仕様(GPTs Actions 短縮版)</a></li>
     <li><a href="https://shirabe.dev/api/v1/calendar/">Shirabe Calendar API(同一 API キーで利用可、料金は別系統)</a></li>
-    <li><a href="https://shirabe.dev/docs/text-pricing">Shirabe Text API 料金プラン(姓名分割・人名読み・ふりがな・形態素解析・表記正規化、2026-05-31 リリース)</a></li>
+    <li><a href="https://shirabe.dev/docs/text-pricing">Shirabe Text API 料金プラン(姓名分割・人名読み・ふりがな・形態素解析・表記正規化、2026-05-18 リリース)</a></li>
     <li><a href="https://shirabe.dev/announcements/2026-05-01">2026-05-01 リリース告知ページ</a></li>
     <li><a href="https://github.com/techwell-inc-jp/shirabe-address-api">GitHub: techwell-inc-jp/shirabe-address-api</a>(Public、MIT)</li>
   </ul>
