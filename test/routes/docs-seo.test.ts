@@ -153,6 +153,36 @@ describe("Layer C/E: original narrative + enhanced cross-links (PR follow-up to 
   });
 });
 
+describe("Q-A / G-A: hero example + Google Maps / YOLP 差別化 (2026-05-12 PR)", () => {
+  it("Q-A: hero example 「東京都港区六本木」 + JIS 13103 + lg_code 131032 + machiaza_id 0028000 を含む", async () => {
+    const { body } = await fetchDoc("/docs/address-normalize");
+    expect(body).toContain("代表クエリ");
+    expect(body).toContain("東京都港区六本木");
+    expect(body).toContain("13103");
+    expect(body).toContain("131032");
+    expect(body).toContain("0028000");
+    // 3 種 ID 別フィールド narrative(Gemini conflate 問題への直接的説明)
+    expect(body).toContain("conflate");
+  });
+
+  it("G-A: Google Maps / YOLP 差別化テーブルが含まれる", async () => {
+    const { body } = await fetchDoc("/docs/address-normalize");
+    expect(body).toContain("Google Maps Geocoding API");
+    expect(body).toContain("Yahoo! OpenLocalPlatform");
+    expect(body).toContain("YOLP");
+    // 既存 4 AI 競合差(Jusho/BODIK 等)narrative は維持されているか
+    expect(body).toContain("Jusho");
+    expect(body).toContain("BODIK");
+  });
+
+  it("Updates: 2026-05-12 エントリ + Week 3 ChatGPT 引用初獲得 narrative", async () => {
+    const { body } = await fetchDoc("/docs/address-normalize");
+    expect(body).toContain("2026-05-12");
+    expect(body).toContain("ChatGPT");
+    expect(body).toContain("Perplexity");
+  });
+});
+
 describe("text API cross-links (B-3 relevance signal、5/10 verify 済 200 OK)", () => {
   it("/docs/address-normalize → /docs/text-normalize(表記正規化 semantic 直結)", async () => {
     const { body } = await fetchDoc("/docs/address-normalize");
