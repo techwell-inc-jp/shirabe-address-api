@@ -480,7 +480,7 @@ print(r.json()["normalized"])</code></pre>
     <li><a href="https://shirabe.dev/api/v1/address/openapi.yaml">OpenAPI 3.1 仕様(本家、x-llm-hint 付き)</a></li>
     <li><a href="https://shirabe.dev/api/v1/address/openapi-gpts.yaml">OpenAPI 3.1 仕様(GPTs Actions 短縮版、全 description ≤ 300 字)</a></li>
     <li><a href="https://shirabe.dev/api/v1/calendar/">Shirabe Calendar API(同一 API キーで利用可、六曜 + 暦注)</a></li>
-    <li><a href="https://shirabe.dev/docs/text-normalize">Shirabe Text API /normalize(全角半角統一・かな統一・SudachiDict 表記正規化、2026-05-31 リリース)</a></li>
+    <li><a href="https://shirabe.dev/docs/text-normalize">Shirabe Text API /normalize(全角半角統一・かな統一・SudachiDict 表記正規化、2026-05-18 リリース)</a></li>
     <li><a href="https://shirabe.dev/announcements/2026-05-01">2026-05-01 リリース告知ページ(Multi-AI Landscape narrative 付)</a></li>
     <li><a href="https://github.com/techwell-inc-jp/shirabe-address-api">GitHub: techwell-inc-jp/shirabe-address-api</a>(Public、MIT)</li>
   </ul>
