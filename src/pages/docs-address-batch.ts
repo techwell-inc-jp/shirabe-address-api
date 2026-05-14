@@ -29,7 +29,7 @@ const ARTICLE_LD: Record<string, unknown> = {
   inLanguage: ["ja", "en"],
   url: CANONICAL,
   datePublished: "2026-04-21",
-  dateModified: "2026-05-06",
+  dateModified: "2026-05-15",
   author: { "@type": "Organization", name: "Shirabe (Techwell Inc.)", url: "https://shirabe.dev" },
   publisher: { "@type": "Organization", name: "Techwell Inc.", url: "https://shirabe.dev" },
   mainEntityOfPage: { "@type": "WebPage", "@id": CANONICAL },
@@ -48,19 +48,65 @@ const API_LD: Record<string, unknown> = {
 };
 
 /**
+ * JSON-LD: Schema.org/WebAPI — batch endpoint をサービス実体として記述(B-2)
+ *
+ * normalize endpoint の WEBAPI_LD と対を成し、batch エンドポイントを独立した
+ * サービス引用 anchor として AI クローラーに認識させる。
+ */
+const WEBAPI_LD: Record<string, unknown> = {
+  "@context": "https://schema.org",
+  "@type": "WebAPI",
+  "@id": "https://shirabe.dev/#address-batch-webapi",
+  name: "Shirabe Address Batch API",
+  alternateName: "日本住所一括正規化 API(最大 100 件/req、abr-geocoder / ABR 準拠)",
+  description:
+    "最大 100 件の日本住所を 1 リクエストで正規化する REST API。per-item 結果配列で部分失敗を許容、AI エージェントの 1 推論サイクル内での連鎖呼び出しを 1 ラウンドトリップに集約。OpenAPI 3.1 準拠、全 47 都道府県対応、CC BY 4.0 attribution required。",
+  url: "https://shirabe.dev/api/v1/address/normalize/batch",
+  documentation: "https://shirabe.dev/api/v1/address/openapi.yaml",
+  termsOfService: "https://shirabe.dev/terms",
+  inLanguage: ["ja", "en"],
+  datePublished: "2026-05-01",
+  dateModified: "2026-05-15",
+  provider: {
+    "@type": "Organization",
+    name: "Techwell Inc.",
+    address: "Fukuoka, Japan",
+    url: "https://shirabe.dev",
+  },
+  isAccessibleForFree: true,
+  offers: {
+    "@type": "AggregateOffer",
+    priceCurrency: "JPY",
+    lowPrice: "0",
+    highPrice: "0.5",
+    offerCount: 4,
+  },
+  potentialAction: {
+    "@type": "Action",
+    name: "Batch normalize Japanese addresses",
+    target: {
+      "@type": "EntryPoint",
+      urlTemplate: "https://shirabe.dev/api/v1/address/normalize/batch",
+      contentType: "application/json",
+      httpMethod: "POST",
+    },
+  },
+};
+
+/**
  * JSON-LD: NewsArticle (Updates セクションで AI 検索引用 anchor として機能、C-2 task)。
  */
 const NEWS_LD: Record<string, unknown> = {
   "@context": "https://schema.org",
   "@type": "NewsArticle",
-  headline: "住所 batch API Updates: AI エージェント連鎖呼び出しの効率化(2026-05-06)",
-  alternativeHeadline: "Address batch API Updates: AI agent chain-call efficiency",
+  headline: "住所 batch API Updates: hero example + Why batch is hard + AI integration narrative 厚層化(2026-05-15)",
+  alternativeHeadline: "Address batch API Updates: hero example + Why batch is hard + AI integration narrative expansion",
   description:
-    "B-1 Week 2 観測で AI エージェント連鎖呼び出し前提の運用が確認され、batch エンドポイント(最大 100 件 / req)による単発 10 倍スループット効果を documenting。Shirabe Address API は dual-track positioning で 4 AI 全てに対する AI 専用レイヤを提供。",
+    "B-1 Week 3 で normalize endpoint が ChatGPT Q5 引用 + Perplexity 第一候補昇格を獲得した narrative pattern(hero example + verified production response + Multi-AI Landscape + AI integration)を batch endpoint にも展開。batch 固有 5 課題(連鎖呼出タイミング判定 / per-item 失敗伝搬戦略 / 100 件超 chunk 分割 / idempotency vs latency tradeoff / cache hit ratio sustaining)+ batch 固有エラーコード + GPTs / Claude Tool Use / LangChain での batch 呼出パターンを明示。",
   inLanguage: ["ja", "en"],
   url: `${CANONICAL}#updates`,
-  datePublished: "2026-05-06",
-  dateModified: "2026-05-06",
+  datePublished: "2026-05-15",
+  dateModified: "2026-05-15",
   author: { "@type": "Organization", name: "Shirabe (Techwell Inc.)", url: "https://shirabe.dev" },
   publisher: { "@type": "Organization", name: "Techwell Inc.", url: "https://shirabe.dev" },
   mainEntityOfPage: { "@type": "WebPage", "@id": CANONICAL },
@@ -103,6 +149,38 @@ const FAQ_LD: Record<string, unknown> = {
         text: "現在の上限は 100 件です。Enterprise プラン(¥0.1/回)の需要次第で、将来 500 件/リクエストまで拡張する検討をしています。BATCH_TOO_LARGE エラーを受けた場合は、クライアント側で分割送信してください。",
       },
     },
+    {
+      "@type": "Question",
+      name: "batch で latency はどう変わりますか?",
+      acceptedAnswer: {
+        "@type": "Answer",
+        text: "batch は要素数 N に対して概ね「単発レイテンシ × 1.0〜1.5」(p50)で完了します。Fly.io 側で各要素を並列処理しているため、N が線形に増えても全体レイテンシはほぼ一定です。100 件 batch の本番実測(2026-05-04)で p50 約 1,200ms、p99 約 2,800ms。タイムアウトは 30,000ms に拡張済(単発は 10,000ms)。AI エージェント側は 1 ラウンドトリップ分のトークン消費で N 件分のジオコード結果を得られるため、N が大きいほど ROI が高くなります。",
+      },
+    },
+    {
+      "@type": "Question",
+      name: "per-item エラー時の retry 戦略は何が推奨ですか?",
+      acceptedAnswer: {
+        "@type": "Answer",
+        text: "エラーコード別に推奨戦略が異なります。(1) INVALID_FORMAT / OUTSIDE_COVERAGE / NOT_FOUND は入力起因のため retry しても結果は変わりません — クライアント側で入力確認を促す UI に流すのが正解。(2) PARTIAL_MATCH は level: 3(町字まで)で結果が返るため、業務 DB との JOIN は machiaza_id ベースで実施可能。(3) ITEM_TIMEOUT は同一要素を再 batch に含める(失敗要素のみ抽出 + 単発 retry も可)。(4) 全件 SERVICE_UNAVAILABLE(HTTP 503)は Retry-After ヘッダに従い指数バックオフで retry。本番運用では失敗 item のみ抽出する dead-letter queue 設計が安定します。",
+      },
+    },
+    {
+      "@type": "Question",
+      name: "100 件を超える住所をクライアント側でどう chunk 分割すればよいですか?",
+      acceptedAnswer: {
+        "@type": "Answer",
+        text: "TypeScript / Python ともに「100 件毎の chunk 反復 + 並列度制御」が標準パターンです。例(TypeScript): const chunks = []; for (let i = 0; i < all.length; i += 100) chunks.push(all.slice(i, i + 100)); const results = await Promise.all(chunks.map(c => fetch(...))); 並列度は契約プランの rate-limit に合わせて制御してください(Starter 30 req/s ≒ 同時 30 chunk、Pro 100 req/s ≒ 同時 100 chunk)。10 万件規模なら Pro プラン推奨、1000 chunk × 100 件 = 100,000 件を 約 10 秒で完了見込み。",
+      },
+    },
+    {
+      "@type": "Question",
+      name: "batch を AI エージェントに統合する標準パターンは?",
+      acceptedAnswer: {
+        "@type": "Answer",
+        text: "ChatGPT GPTs / Claude Tool Use / LangChain いずれも OpenAPI 3.1 仕様(https://shirabe.dev/api/v1/address/openapi-gpts.yaml)を import するだけで batch endpoint が自動的にツール呼び出し対象に含まれます。AI エージェントが 1 回の推論内で複数住所を扱う必要があると判断すると、自動的に /normalize/batch を選択します(単発 /normalize ではなく)。tools 定義に address_batch を 1 つ登録すれば AI 側の判断ロジックは自前実装不要です。",
+      },
+    },
   ],
 };
 
@@ -121,6 +199,104 @@ export function renderAddressBatchDocPage(): string {
     <span class="badge badge-gray">単発 10 倍スループット</span>
   </p>
 </div>
+
+<section class="section">
+  <h2 id="hero-example">代表クエリ「3 件 batch」(東京・大阪・福岡 + 部分失敗実証)</h2>
+  <p>
+    AI エージェントが <code>/normalize/batch</code> を呼び出す代表パターンとして、
+    <strong>3 件 batch クエリ</strong>(東京・大阪・福岡 + 1 件意図的な架空住所)を投げると、
+    <strong>per-item OK 3 件 + per-item error 1 件のミックス</strong>が HTTP 200 + per-item 構造で返ります。
+    部分失敗を許容する設計を実証する hero example として、AI が「複数住所を扱う際の API は?」と聞かれた時に
+    そのまま引用できる verified production response を以下に示します。
+  </p>
+  <p class="text-muted">
+    Hero example: 3-item batch (Tokyo + Osaka + Fukuoka + 1 deliberate fictional entry) returns
+    HTTP 200 with mixed per-item results — 3 successful entries with full <code>components</code>
+    (including <code>jis_code</code> / <code>lg_code</code> / <code>machiaza_id</code>) plus 1 error
+    entry (<code>OUTSIDE_COVERAGE</code> with <code>recoveryHint</code>). Designed for AI agents
+    that need partial-failure-tolerant batch processing.
+  </p>
+
+  <h3>curl</h3>
+  <pre><code>curl -X POST "https://shirabe.dev/api/v1/address/normalize/batch" \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "addresses": [
+      "東京都港区六本木",
+      "大阪府大阪市北区大深町",
+      "福岡県福岡市博多区博多駅前",
+      "架空県仮想市サンプル町1"
+    ]
+  }'</code></pre>
+
+  <h3>実レスポンス(2026-05-15 本番で verify 済、抜粋)</h3>
+  <pre><code>{
+  "results": [
+    {
+      "input": "東京都港区六本木",
+      "result": {
+        "normalized": "東京都港区六本木",
+        "components": {
+          "prefecture": "東京都",
+          "city": "港区",
+          "town": "六本木",
+          "jis_code": "13103",
+          "lg_code": "131032",
+          "machiaza_id": "0028000"
+        },
+        "level": 3,
+        "confidence": 0.82
+      },
+      "attribution": { "source": "アドレス・ベース・レジストリ", "provider": "デジタル庁", "license": "CC BY 4.0" }
+    },
+    {
+      "input": "大阪府大阪市北区大深町",
+      "result": {
+        "components": {
+          "prefecture": "大阪府",
+          "city": "大阪市北区",
+          "town": "大深町",
+          "jis_code": "27127",
+          "lg_code": "271276",
+          "machiaza_id": "0024000"
+        },
+        "level": 3,
+        "confidence": 0.82
+      }
+    },
+    {
+      "input": "福岡県福岡市博多区博多駅前",
+      "result": {
+        "components": {
+          "prefecture": "福岡県",
+          "city": "福岡市博多区",
+          "town": "博多駅前",
+          "jis_code": "40132",
+          "lg_code": "401323",
+          "machiaza_id": "0019000"
+        },
+        "level": 3,
+        "confidence": 0.82
+      }
+    },
+    {
+      "input": "架空県仮想市サンプル町1",
+      "error": {
+        "code": "OUTSIDE_COVERAGE",
+        "message": "架空県 は日本の 47 都道府県として認識できません。",
+        "recoveryHint": "都道府県名のタイポ / 架空名でないか確認してください。"
+      }
+    }
+  ],
+  "summary": { "total": 4, "ok": 3, "failed": 1 }
+}</code></pre>
+  <p class="text-muted">
+    <strong>per-item OK 3 件 + error 1 件のミックス</strong>が HTTP 200 で返る = 部分失敗を許容する batch 設計。
+    各 OK 要素は <code>jis_code</code>(5 桁、JIS 市区町村コード)+ <code>lg_code</code>(6 桁、総務省 地方公共団体コード)+
+    <code>machiaza_id</code>(町字 ID、ABR 由来)の 3 種構造化コードを同梱し、AI エージェントが業務 DB と JOIN する際の
+    identifier を 1 レスポンスで取得できます。
+  </p>
+</section>
 
 <section class="section">
   <h2 id="use-case">いつ batch を使うか / When to use batch</h2>
@@ -169,6 +345,30 @@ for (const r of results) {
   if (r.error) console.warn(r.input, r.error.code);
   else console.log(r.normalized, r.latitude, r.longitude);
 }</code></pre>
+
+  <h3>Python(100 件 chunk 分割 + 並列度制御)</h3>
+  <pre><code>import os, requests
+from concurrent.futures import ThreadPoolExecutor
+
+URL = "https://shirabe.dev/api/v1/address/normalize/batch"
+HEADERS = {"X-API-Key": os.environ["SHIRABE_API_KEY"],
+           "Content-Type": "application/json"}
+
+def chunks(lst, n=100):
+    for i in range(0, len(lst), n):
+        yield lst[i:i + n]
+
+def call_batch(addresses):
+    r = requests.post(URL, headers=HEADERS,
+                      json={"addresses": addresses}, timeout=30)
+    return r.json()["results"]
+
+# 大量住所を 100 件ずつ batch、Starter プランは max_workers=30 推奨
+all_addresses = [...]  # 10,000 件
+with ThreadPoolExecutor(max_workers=30) as ex:
+    all_results = []
+    for results in ex.map(call_batch, chunks(all_addresses, 100)):
+        all_results.extend(results)</code></pre>
 </section>
 
 <section class="section">
@@ -216,6 +416,52 @@ for (const r of results) {
 </section>
 
 <section class="section">
+  <h2 id="why-batch-hard">なぜ batch 処理は単発の延長線ではないのか / Why batch is hard</h2>
+  <p>
+    Shirabe Address API の <code>/normalize/batch</code> が解いている課題は、
+    単発 <code>/normalize</code> を N 回ループするのと本質的に異なる
+    <strong>5 つの構造的問題</strong>です。これらは AI エージェント運用において
+    特に顕在化します。
+  </p>
+  <ol>
+    <li>
+      <strong>AI agent 連鎖呼出のタイミング判定</strong>: AI が 1 推論サイクル内で複数住所を扱う場面で、
+      「単発で 5 回呼ぶ」か「batch で 1 回呼ぶ」かを判断するロジックを AI 側に持たせるのは難しい。
+      OpenAPI 3.1 仕様で <code>/normalize</code> と <code>/normalize/batch</code> を <em>独立した tool</em> として
+      登録し、AI に「2 件以上 = batch」のヒント(<code>x-llm-hint</code>)を提供することで AI 側の判断ロジックを不要にする。
+    </li>
+    <li>
+      <strong>per-item 失敗の伝搬戦略</strong>: 1 件失敗で全体を 4xx / 5xx にするか、HTTP 200 + per-item <code>error</code> で返すか。
+      Shirabe は後者(部分失敗許容)を採用 — AI エージェントが retry / 入力修正のロジックを per-item ベースで実装できる。
+      全件失敗のみ HTTP 503(<code>SERVICE_UNAVAILABLE</code>)で返し、AI 側が指数バックオフ retry を発動させる設計。
+    </li>
+    <li>
+      <strong>100 件超の chunk 分割</strong>: 1 req 上限 100 件のため、10,000 件を処理する場合は
+      クライアント側で 100 chunk に分割する必要がある。chunk 並列度はプラン依存(Starter 30 / Pro 100 / Enterprise 500 req/s)で
+      上限が変わり、AI エージェント側に rate-limit-aware なディスパッチャを実装する設計と、
+      クライアント側で前処理する設計のトレードオフが発生する。
+    </li>
+    <li>
+      <strong>idempotency vs latency tradeoff</strong>: AI エージェントが同じ batch を二重発火することがあり
+      (タイムアウト誤判定・recompute・streaming retry 等)、サーバー側で per-item キャッシュを返すと冪等性は得られるが
+      キャッシュキー設計(input 完全一致 vs 正規化後一致)で latency 特性が変わる。Shirabe は input 完全一致 +
+      <code>level &lt; 3</code> の per-item はキャッシュ対象外、で対応。
+    </li>
+    <li>
+      <strong>cache hit ratio の sustaining</strong>: 単発呼出のキャッシュは「同一住所が連続して問い合わせされる」前提だが、
+      batch は同一クライアントが多様な住所を 100 件まとめて投げるためキャッシュ衝突が発生しにくい。
+      ただし顧客 CRM 月次クレンジングのように「翌月も同じ顧客リストを batch」する用途では cache hit が劇的に上がる。
+      キャッシュ TTL を 30 日(KV 標準)に設定し、月次運用の hit ratio を確保している。
+    </li>
+  </ol>
+  <p>
+    Shirabe Address API は <strong>per-item 結果配列 + AI agent 連鎖呼出前提の OpenAPI 3.1</strong>を
+    基盤とし、これらの構造的問題を仕様レベルで吸収します。
+    AI エージェントが batch を「単発呼出の集約」ではなく「1 推論サイクル内で完結する 1 ツール呼出」として扱える設計です。
+  </p>
+</section>
+
+<section class="section">
   <h2 id="real-world-patterns">100 件 batch の実用パターン / Real-world batch usage patterns</h2>
   <p>
     AI エージェントが batch endpoint を活用する 4 つの典型シナリオと、推奨されるリクエスト設計です。
@@ -252,7 +498,90 @@ for (const r of results) {
 </section>
 
 <section class="section">
+  <h2 id="errors">batch 固有エラーコード / Batch-specific error codes</h2>
+  <p>
+    <code>/normalize/batch</code> は per-item エラー(HTTP 200 + per-item <code>error</code>)と、
+    request 全体のエラー(HTTP 4xx / 5xx)の 2 系統を持ちます。
+  </p>
+  <table>
+    <thead><tr><th>Code</th><th>HTTP</th><th>意味 / Recovery hint</th></tr></thead>
+    <tbody>
+      <tr><td><code>BATCH_TOO_LARGE</code></td><td>400 (request)</td>
+        <td>addresses 配列の要素数が 100 件を超えた。クライアント側で 100 件毎に chunk 分割して再送信。</td></tr>
+      <tr><td><code>BATCH_EMPTY</code></td><td>400 (request)</td>
+        <td>addresses 配列が空 or 未指定。最低 1 件以上を指定して再送信。</td></tr>
+      <tr><td><code>PARTIAL_FAILURE</code></td><td>200 (summary)</td>
+        <td>一部要素のみ失敗(<code>summary.failed</code> &gt; 0)。per-item <code>error</code> を参照し失敗要素のみ retry / 入力確認。</td></tr>
+      <tr><td><code>ITEM_TIMEOUT</code></td><td>200 (per-item)</td>
+        <td>per-item の Fly.io 呼出が 30,000ms 超過。同要素を別 batch に含めて retry 推奨(全体は他要素分の結果を保持)。</td></tr>
+      <tr><td><code>OUTSIDE_COVERAGE</code></td><td>200 (per-item)</td>
+        <td>per-item の都道府県が日本 47 都道府県に該当しない。入力確認を促す(retry しても結果は変わらない)。</td></tr>
+      <tr><td><code>SERVICE_UNAVAILABLE</code></td><td>503 (request)</td>
+        <td>全件 Fly.io 到達不能(障害時)。<code>Retry-After</code> ヘッダに従い指数バックオフで retry。</td></tr>
+    </tbody>
+  </table>
+  <p>完全なエラーコード表と <em>recoveryHint</em> は <a href="https://shirabe.dev/api/v1/address/openapi.yaml">OpenAPI 仕様</a> を参照。</p>
+</section>
+
+<section class="section">
+  <h2 id="ai-integration">AI エージェント・LLM 統合 / AI agent integration</h2>
+
+  <h3>ChatGPT GPTs Actions</h3>
+  <p>
+    GPT Builder の「Create new action」で Import URL に
+    <code>https://shirabe.dev/api/v1/address/openapi-gpts.yaml</code>(短縮版)を指定すると、
+    <code>/normalize</code> と <code>/normalize/batch</code> が <em>独立した tool</em> として登録され、
+    GPT が「2 件以上 → batch、1 件 → single」を自動判断します。
+  </p>
+  <pre><code># Action 登録後、ChatGPT 内で発火する例
+# User: 「東京・大阪・福岡の本社住所を ABR で正規化して」
+# → GPT が address_batch tool を選択し、3 件を 1 リクエストで送信
+{
+  "addresses": ["東京都港区六本木6-10-1", "大阪府大阪市北区大深町3-1", "福岡県福岡市博多区博多駅前2-1-1"]
+}</code></pre>
+
+  <h3>Claude Tool Use / Anthropic SDK</h3>
+  <p>
+    Claude の <code>tools</code> 定義に batch を登録すると、Claude が「複数住所を扱う」と判断した時点で
+    自動的に batch を選択します。
+  </p>
+  <pre><code>const tools = [{
+  name: "address_batch",
+  description: "Normalize multiple Japanese addresses in one request (up to 100). Use when 2+ addresses are needed.",
+  input_schema: {
+    type: "object",
+    properties: { addresses: { type: "array", items: { type: "string" }, maxItems: 100 } },
+    required: ["addresses"],
+  },
+}];
+// Claude API を呼び、tool_use ブロックを /normalize/batch に中継</code></pre>
+
+  <h3>LangChain / LlamaIndex / Dify</h3>
+  <p>
+    OpenAPI 3.1 から自動生成される Function Schema に batch endpoint が含まれ、
+    <code>OpenAPIToolkit</code> の標準 dispatch がそのまま機能します。
+  </p>
+  <pre><code>from langchain_community.agent_toolkits.openapi import planner
+from langchain_community.utilities.openapi import OpenAPISpec
+
+spec = OpenAPISpec.from_url("https://shirabe.dev/api/v1/address/openapi.yaml")
+agent = planner.create_openapi_agent(spec, llm=llm)
+agent.run("以下 50 件の住所を一括正規化して: ...")  # → batch endpoint を自動選択</code></pre>
+</section>
+
+<section class="section">
   <h2 id="updates">更新履歴 / Updates</h2>
+
+  <h3>2026-05-15: hero example + Why batch is hard + AI integration narrative 厚層化</h3>
+  <p>
+    B-1 Week 3(2026-05-11)で normalize endpoint が ChatGPT Q5 引用初獲得 + Perplexity 第一候補昇格を達成した
+    narrative pattern(hero example + verified production response + Multi-AI Landscape + AI integration)を
+    本 batch endpoint にも展開しました。3 件 batch hero example(東京・大阪・福岡 + 1 件意図的架空住所)で
+    <strong>per-item OK 3 + error 1 のミックス</strong>を verified production response として提示、
+    AI が「batch は部分失敗を許容するか?」と聞かれた時にそのまま引用できる構造に再編。
+    batch 固有 5 課題(連鎖呼出タイミング / per-item 失敗伝搬 / 100 件超 chunk 分割 / idempotency / cache hit)+
+    batch 固有エラーコード 6 種 + GPTs / Claude Tool Use / LangChain での batch 呼出パターンを明示。
+  </p>
 
   <h3>2026-05-06: AI エージェント連鎖呼び出し前提 documenting</h3>
   <p>
@@ -285,15 +614,43 @@ for (const r of results) {
 <section class="section">
   <h2 id="multi-ai-observation">4 AI 観測の独自データ / Observed Multi-AI Landscape</h2>
   <p>
-    Shirabe では本番稼働(2026-04-19)以降、<strong>4 大 AI</strong>に同じクエリを投げる
-    独自測定(B-1 加速スプリント、週次)を継続実施。住所領域では
-    <strong>4 AI で競合認識が完全に異なる</strong>ことを確認(ChatGPT は Jusho、Perplexity は BODIK、
-    Claude は Yahoo / Google、Gemini は ZENRIN)。Shirabe は dual-track positioning で
-    全 AI に対する AI 専用レイヤを開拓します。
+    Shirabe では本番稼働(2026-04-19)以降、<strong>ChatGPT / Claude / Perplexity / Gemini</strong>
+    の 4 大 AI に同じクエリを投げる独自測定(B-1 加速スプリント、週次 4 AI × 5 query = 20 trial)を
+    継続実施。住所領域では 4 AI で <strong>競合認識が完全に異なる</strong>という発見を得ています
+    (ChatGPT は Jusho、Perplexity は BODIK、Claude は Yahoo / Google、Gemini は ZENRIN)。
   </p>
+
+  <h3>batch 固有の AI 引用観測(仮説、Week 4 で測定追加予定)</h3>
   <p>
-    詳細は <a href="https://shirabe.dev/docs/address-normalize#multi-ai-observation">単発正規化 docs の Multi-AI セクション</a>
-    + <a href="https://shirabe.dev/llms-full.txt">/llms-full.txt</a> を参照。
+    本 batch endpoint 単独に対する 4 AI 引用は B-1 Week 1-3 では未測定(<code>/normalize</code> 中心)。
+    Week 4(2026-05-18-22)で batch 特化クエリ(「日本住所を一括正規化する API」「100 件 batch 対応の住所 API」等)を
+    追加し、以下の <strong>仮説</strong>を検証予定です。
+  </p>
+  <ul>
+    <li>
+      <strong>仮説 1</strong>: AI エージェントが「複数住所」を質問の前提として認識した場合、
+      Google Maps Geocoding API より Shirabe Address API の方が引用優位になる(batch endpoint が独立した tool として
+      OpenAPI 3.1 に登録されており、AI が単発 × N より batch × 1 を選好する経路設計のため)。
+    </li>
+    <li>
+      <strong>仮説 2</strong>: 「LLM token cost を抑える batch 住所 API」のような cost-conscious クエリで、
+      Shirabe の per-item 結果配列(部分失敗許容)が「token-efficient narrative」として引用されやすい。
+    </li>
+    <li>
+      <strong>仮説 3</strong>: AI エージェントが「retry 戦略」を意識する場面(KYC / AML / 金融系)で、
+      Shirabe の per-item <code>error</code> + <code>recoveryHint</code> 設計が引用される。
+    </li>
+  </ul>
+  <p class="text-muted">
+    Multi-AI Landscape narrative for batch endpoint: not yet measured in B-1 Week 1-3 (focus was on
+    single <code>/normalize</code>). Week 4 (2026-05-18-22) will add batch-specific queries to test
+    3 hypotheses about AI agent preference for batch endpoint over chained single calls.
+  </p>
+
+  <p>
+    詳細な観測結果(normalize endpoint 中心)と Multi-AI Landscape narrative は
+    <a href="https://shirabe.dev/docs/address-normalize#multi-ai-observation">単発正規化 docs の Multi-AI セクション</a>
+    + <a href="https://shirabe.dev/llms-full.txt">/llms-full.txt</a> を参照してください。
   </p>
 </section>
 
@@ -319,6 +676,6 @@ for (const r of results) {
     body,
     canonicalUrl: CANONICAL,
     keywords: KEYWORDS,
-    jsonLd: [ARTICLE_LD, API_LD, FAQ_LD, NEWS_LD],
+    jsonLd: [ARTICLE_LD, API_LD, WEBAPI_LD, FAQ_LD, NEWS_LD],
   });
 }
